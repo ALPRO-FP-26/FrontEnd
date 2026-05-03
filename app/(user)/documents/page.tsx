@@ -756,17 +756,6 @@ export default function Documents() {
           {toast.msg}
         </div>
       )}
-
-      <style>{`
-        @keyframes slideIn {
-          from { transform: translateX(100%); }
-          to   { transform: translateX(0); }
-        }
-        @keyframes grow {
-          from { width: 0%; }
-          to   { width: 100%; }
-        }
-      `}</style>
     </div>
   );
 }
