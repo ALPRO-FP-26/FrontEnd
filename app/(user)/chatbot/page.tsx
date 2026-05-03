@@ -173,7 +173,7 @@ export default function Chatbot() {
         >
           <MessageCirclePlus size={20}/>
         </Button>
-        <span className="w-7 h-7 rotate-135 -my-5 bg-background scoop-65-35 -z-1"/>
+        <span className="w-7 h-7 rotate-135 -my-5 bg-background scoop-70-30 -z-1"/>
         <div className="flex flex-col w-full px-6 py-4 squircle bg-background">
           <h1 className="text-xl font-semibold text-foreground">AI Assistant</h1>
           <p className="text-[12px] font-mono">ask AI about your health</p>
@@ -292,7 +292,7 @@ export default function Chatbot() {
             Enter to send · Shift+Enter for new line
           </p>
         </div>
-        <span className="w-7 h-7 rotate-135 bg-background scoop-65-35 -z-1"/>
+        <span className="w-7 h-7 rotate-135 bg-background scoop-70-30 -z-1"/>
         <Button
           onClick={() => sendMessage()}
           disabled={!input.trim() || isTyping}

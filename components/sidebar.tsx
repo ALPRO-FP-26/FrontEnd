@@ -42,7 +42,7 @@ export default function Sidebar() {
               {item.icon}
             </Link>
             {!isLast && (
-              <span className="w-7 h-7 rotate-45 -my-3.25 bg-background scoop-65-35 -z-1"/>
+              <span className="w-7 h-7 rotate-45 -my-3.25 bg-background scoop-70-30 -z-1"/>
             )}
           </div>
         );
