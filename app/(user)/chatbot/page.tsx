@@ -264,7 +264,7 @@ export default function Chatbot() {
 
       {/* ── Suggestion chips ── */}
       {messages.length <= 1 && !isTyping && (
-        <div className="relative z-10 flex flex-wrap gap-2 px-6 pb-3">
+        <div className="relative z-10 flex flex-wrap items-center max-w-[70%] gap-2 px-6 pb-3">
           {SUGGESTIONS.map((s) => (
             <Chip key={s} label={s} onClick={() => sendMessage(s)} />
           ))}
