@@ -1,6 +1,8 @@
+'use client';
+
 interface SuggestionChipProps {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
 }
 
 export default function Chip({ label, onClick }: SuggestionChipProps) {

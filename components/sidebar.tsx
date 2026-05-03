@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import "../app/globals.css";
+import "@/app/globals.css";
 import { HeartPulse, MessageCircleMore, FileText, CircleUserRound } from 'lucide-react';
 
 interface NavItem {
@@ -13,8 +13,8 @@ interface NavItem {
 
 const navList: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: <HeartPulse size={20} /> },
-  { name: "Chatbot", href: "/chatbot", icon: <MessageCircleMore size={20} /> },
   { name: "Documents", href: "/documents", icon: <FileText size={20} /> },
+  { name: "Chatbot", href: "/chatbot", icon: <MessageCircleMore size={20} /> },
   { name: "Profile", href: "/profile", icon: <CircleUserRound size={20} /> },
 ];
 

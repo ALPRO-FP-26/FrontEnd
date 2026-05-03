@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from "react";
-import { FileUp, MessageCirclePlus, SendHorizontal } from "lucide-react";
-import Chip from "../../../components/chip";
-import Button from "../../../components/button";
+import {  MessageCirclePlus, SendHorizontal } from "lucide-react";
+import Chip from "@/components/chip";
+import Button from "@/components/button";
 
 type Message = {
   id: string;
@@ -41,9 +41,9 @@ export default function Chatbot() {
   const [isTyping, setIsTyping] = useState(false);
   const [streamedText, setStreamedText] = useState("");
   const [date, setDate] = useState<string>("");
+  const [hasMounted, setHasMounted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,6 +51,7 @@ export default function Chatbot() {
 
   useEffect(() => {
     setDate(new Date().toLocaleDateString());
+    setHasMounted(true);
   }, []);
 
   const resizeTextarea = () => {
@@ -149,32 +150,6 @@ export default function Chatbot() {
     mockIdx = 0;
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Check if it's a PDF
-    if (file.type !== "application/pdf") {
-      alert("Please select a PDF file.");
-      return;
-    }
-
-    // Check file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > maxSize) {
-      alert("File size must be less than 10MB.");
-      return;
-    }
-
-    // Handle the file (for now, just log it)
-    console.log("File uploaded:", file.name);
-    alert(`File "${file.name}" uploaded successfully!`);
-  };
-
-  const triggerFileUpload = () => {
-    fileInputRef.current?.click();
-  };
-
   return (
     <div className="flex flex-col justify-center items-center h-screen bg-gray-300 text-foreground">
 
@@ -190,11 +165,6 @@ export default function Chatbot() {
 
       {/* ── Header ── */}
       <header className="w-[70%] mt-5 z-10 flex -space-x-2.75 items-center">
-        <div className="flex flex-col w-full px-6 py-4 squircle bg-background">
-          <h1 className="text-xl font-semibold text-foreground">AI Assistant</h1>
-          <p className="text-[12px] font-mono">ask AI about your health</p>
-        </div>
-        <span className="w-7 h-7 rotate-135 -my-5 bg-background scoop-65-35 -z-1"/>
         <Button
           onClick={resetChat}
           title="New chat"
@@ -203,6 +173,11 @@ export default function Chatbot() {
         >
           <MessageCirclePlus size={20}/>
         </Button>
+        <span className="w-7 h-7 rotate-135 -my-5 bg-background scoop-65-35 -z-1"/>
+        <div className="flex flex-col w-full px-6 py-4 squircle bg-background">
+          <h1 className="text-xl font-semibold text-foreground">AI Assistant</h1>
+          <p className="text-[12px] font-mono">ask AI about your health</p>
+        </div>
       </header>
 
       {/* ── Messages ── */}
@@ -244,7 +219,7 @@ export default function Chatbot() {
                 {renderContent(msg.content)}
               </div>
               <span className="text-[11px] font-mono text-foreground/50 tracking-wide">
-                {formatTime(msg.timestamp)}
+                {hasMounted ? formatTime(msg.timestamp) : ""}
               </span>
             </div>
           </div>
@@ -298,23 +273,6 @@ export default function Chatbot() {
 
       {/* ── Input area ── */}
       <div className="w-[70%] z-10 mb-10 flex items-center -space-x-2.75">
-        <Button
-          onClick={triggerFileUpload}
-          title="Add File"
-          className="z-11"
-          bgClass="bg-richcerulean text-background"
-          hoverClass="hover:bg-foreground hover:text-background"
-        >
-          <FileUp size={20}/>
-        </Button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          accept=".pdf"
-          style={{ display: "none" }}
-        />
-        <span className="w-7 h-7 rotate-135 bg-background scoop-65-35 -z-1"/>
         <div className="flex flex-col w-[95%] squircle bg-background">
           <div className="flex w-full items-center gap-2.5 p-4">
             <textarea
@@ -346,18 +304,6 @@ export default function Chatbot() {
           <SendHorizontal size={20}/>
         </Button>
       </div>
-
-      {/* Custom keyframes */}
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
