@@ -79,7 +79,7 @@ export default function Home() {
           </p>
           <div className="mt-4">
             <Button
-              href="/register"
+              href="#Introduction"
               className="px-8 py-4 bg-richcerulean hover:bg-gray-900 text-white !border-none shadow-lg shadow-richcerulean/20 rounded-full transition-all"
               title="Getting Started"
             >
@@ -91,7 +91,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mt-10" style={{ animation: "fadeUp 0.6s ease-out" }}>
+        <section className="mt-10" style={{ animation: "fadeUp 0.6s ease-out" }} id="Introduction">
           <div className="bg-white rounded-[32px] p-10 sm:p-14 border border-gray-200 shadow-sm flex flex-col md:flex-row gap-10 items-center">
             <div className="flex-1 space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-richcerulean text-xs font-semibold uppercase tracking-wider">
