@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Mail, Lock, ArrowRight, Activity } from "lucide-react";
 import Button from "@/components/button";
+import { ArrowLeft } from "lucide-react";
 
 function FieldInput({
   label, value, type = "text", placeholder, icon: Icon, onChange,
@@ -52,6 +53,13 @@ export default function LoginPage() {
       >
         <div className="absolute top-0 right-0 w-40 h-40 bg-richcerulean/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-foreground/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
+
+        <Link 
+          href="/" 
+          className="absolute top-6 left-6 z-20 w-10 h-10 squircle bg-background border border-foreground/10 flex items-center justify-center text-foreground/60 shadow-sm cursor-pointer hover:text-richcerulean hover:border-richcerulean/40 transition-colors"
+        >
+          <ArrowLeft size={18} />
+        </Link>
 
         <div className="relative z-10 flex flex-col gap-8">
           <div className="flex flex-col items-center text-center gap-2">
