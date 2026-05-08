@@ -4,10 +4,10 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
   FileUp, PenLine, FileText, X, CheckCircle, Loader2,
   FlaskConical, Pencil, Trash2, ClipboardList, FilePlus2,
-  ChevronDown, ChevronUp, AlertTriangle,
+  ChevronDown, ChevronUp, AlertTriangle, Image as ImageIcon
 } from "lucide-react";
 import Button from "@/components/button";
-import { HealthRecord, EMPTY_RECORD, getStatus } from "@/lib/healthRecord";
+import { HealthRecord, EMPTY_RECORD, getStatus, MARKERS, STANDARD_FIELDS, getCategoryForLabel, formatDateToYYYYMMDD } from "@/lib/healthRecord";
 import {
   uploadDocument,
   getDocuments,
@@ -16,27 +16,15 @@ import {
   deleteDocument as apiDeleteDocument,
 } from "@/lib/api";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type Tab = "add" | "records";
-type InputMethod = "pdf" | "manual";
+type InputMethod = "file" | "manual";
 type OcrState = "idle" | "processing" | "done";
 type ModalState =
   | { type: "none" }
   | { type: "edit"; record: HealthRecord }
   | { type: "delete"; id: string; name: string };
 
-// ─── Markers for status chips ─────────────────────────────────────────────────
-
-const MARKERS: [string, keyof HealthRecord, number, number, string][] = [
-  ["Glucose (F)", "glucoseFasting", 70, 99, "mg/dL"],
-  ["HbA1c", "hba1c", 0, 5.7, "%"],
-  ["Chol", "cholTotal", 0, 200, "mg/dL"],
-  ["LDL", "cholLDL", 0, 100, "mg/dL"],
-  ["HDL", "cholHDL", 40, 999, "mg/dL"],
-  ["Trig", "triglycerides", 0, 150, "mg/dL"],
-  ["Uric Acid", "uricAcid", 3.5, 7.2, "mg/dL"],
-];
+type DynamicParam = { label: string; value: string; unit: string };
 
 const chipClass: Record<string, string> = {
   ok: "border-green-400/60  bg-green-50   text-green-700",
@@ -45,7 +33,58 @@ const chipClass: Record<string, string> = {
 };
 const chipIcon: Record<string, string> = { ok: "✓", warn: "!", bad: "✕" };
 
-// ─── Small re-usable pieces ───────────────────────────────────────────────────
+function mapPreviewToForm(preview: any): { mapped: Partial<typeof EMPTY_RECORD> | null; dynamicFields: DynamicParam[] } {
+  if (!preview) return { mapped: null, dynamicFields: [] };
+
+  const params: Record<string, { value?: unknown; unit?: string }> = preview.parameters ?? {};
+  const unmappedKeys = new Set(Object.keys(params));
+
+  const findAndConsume = (...needles: string[]): string => {
+    for (const needle of needles) {
+      const key = Array.from(unmappedKeys).find(k =>
+        k.toLowerCase().includes(needle.toLowerCase())
+      );
+      if (key != null) {
+        unmappedKeys.delete(key);
+        const v = params[key].value;
+        return v != null ? String(v) : "";
+      }
+    }
+    return "";
+  };
+
+  const mapped: Partial<typeof EMPTY_RECORD> = {
+    reportDate:      formatDateToYYYYMMDD(preview.date) ?? "",
+    lab:             preview.lab_name     ?? "",
+    patientName:     preview.patient_name ?? "",
+    dob:             formatDateToYYYYMMDD(preview.dob) ?? "",
+    glucoseFasting:  findAndConsume("glucose fasting", "fasting glucose", "gula puasa"),
+    glucosePostmeal: findAndConsume("postmeal", "post-meal", "post meal", "2 hour glucose", "2h glucose"),
+    hba1c:           findAndConsume("hba1c", "hba 1c", "hemoglobin a1c"),
+    cholTotal:       findAndConsume("total cholesterol", "cholesterol total"),
+    cholLDL:         findAndConsume("ldl"),
+    cholHDL:         findAndConsume("hdl"),
+    triglycerides:   findAndConsume("triglyceride"),
+    hemoglobin:      findAndConsume("hemoglobin", " hb "),
+    hematocrit:      findAndConsume("hematocrit", " ht "),
+    wbc:             findAndConsume("white blood", "leukosit", "wbc"),
+    platelets:       findAndConsume("platelet", "trombosit"),
+    uricAcid:        findAndConsume("uric acid", "asam urat"),
+    creatinine:      findAndConsume("creatinine", "kreatinin"),
+    bun:             findAndConsume("blood urea nitrogen", " bun", "urea nitrogen"),
+    notes:           (preview.warnings as string[] | undefined ?? []).join(", "),
+  };
+
+  const dynamicFields: DynamicParam[] = [];
+  unmappedKeys.forEach(k => {
+    const val = params[k].value;
+    if (val !== undefined && val !== null && String(val).trim() !== "") {
+      dynamicFields.push({ label: k, value: String(val), unit: params[k].unit || "" });
+    }
+  });
+
+  return { mapped, dynamicFields };
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -98,78 +137,96 @@ function FieldInput({
   );
 }
 
-// ─── Health Form ──────────────────────────────────────────────────────────────
-
 function HealthForm({
   values,
   autofilled,
+  dynamicParams = [],
+  showEmptyFields = true,
   onChange,
+  onDynamicChange,
 }: {
   values: Omit<HealthRecord, "id" | "createdAt">;
   autofilled: Set<string>;
+  dynamicParams?: DynamicParam[];
+  showEmptyFields?: boolean;
   onChange: (field: keyof typeof EMPTY_RECORD, value: string) => void;
+  onDynamicChange?: (index: number, value: string) => void;
 }) {
   const af = (k: string) => autofilled.has(k);
-  const f = (
-    key: keyof typeof EMPTY_RECORD,
-    label: string,
-    type = "text",
-    placeholder = "",
-    unit?: string,
-    hint?: string,
-  ) => (
-    <FieldInput
-      key={key}
-      label={label}
-      type={type}
-      placeholder={placeholder}
-      unit={unit}
-      hint={hint}
-      value={values[key]}
-      autofilled={af(key)}
-      onChange={v => onChange(key, v)}
-    />
-  );
+
+  const groupedFields: Record<string, any[]> = {
+    "Blood Sugar": [],
+    "Cholesterol Panel": [],
+    "Blood Count": [],
+    "Kidney & Urine": [],
+    "Liver Function": [],
+    "Thyroid Profile": [],
+    "Electrolytes & Minerals": [],
+    "Immunology & Markers": [],
+    "Other Tests": []
+  };
+
+  STANDARD_FIELDS.forEach(field => {
+    const val = values[field.key as keyof typeof EMPTY_RECORD] as string;
+    if (!showEmptyFields && !val) return; 
+
+    groupedFields[field.cat].push({
+      isStandard: true,
+      key: field.key,
+      label: field.label,
+      value: val,
+      unit: field.unit,
+      hint: field.hint,
+    });
+  });
+
+  dynamicParams.forEach((param, index) => {
+    if (!showEmptyFields && !param.value) return; 
+
+    const cat = getCategoryForLabel(param.label);
+    if (groupedFields[cat]) {
+      groupedFields[cat].push({
+        isStandard: false,
+        index: index,
+        label: param.label,
+        value: param.value,
+        unit: param.unit
+      });
+    }
+  });
 
   return (
     <div className="flex flex-col gap-4">
       <SectionLabel>Patient Info</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
-        {f("reportDate", "Report Date", "date")}
-        {f("lab", "Lab / Source", "text", "e.g. Prodia, Kimia Farma")}
-        {f("patientName", "Patient Name", "text", "Full name")}
-        {f("dob", "Date of Birth", "date")}
+        <FieldInput label="Report Date" type="date" value={values.reportDate} autofilled={af("reportDate")} onChange={v => onChange("reportDate", v)} />
+        <FieldInput label="Lab / Source" placeholder="e.g. Prodia" value={values.lab} autofilled={af("lab")} onChange={v => onChange("lab", v)} />
+        <FieldInput label="Patient Name" value={values.patientName} autofilled={af("patientName")} onChange={v => onChange("patientName", v)} />
+        <FieldInput label="Date of Birth" type="date" value={values.dob} autofilled={af("dob")} onChange={v => onChange("dob", v)} />
       </div>
 
-      <SectionLabel>Blood Sugar</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        {f("glucoseFasting", "Fasting Glucose", "number", "70–99", "mg/dL", "Normal: 70–99")}
-        {f("glucosePostmeal", "Post-meal Glucose (2h)", "number", "< 140", "mg/dL", "Normal: < 140")}
-        {f("hba1c", "HbA1c", "number", "< 5.7", "%", "Normal: < 5.7")}
-      </div>
+      {Object.entries(groupedFields).map(([catName, fields]) => {
+        if (fields.length === 0) return null;
 
-      <SectionLabel>Cholesterol Panel</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        {f("cholTotal", "Total Cholesterol", "number", "< 200", "mg/dL", "Normal: < 200")}
-        {f("cholLDL", "LDL Cholesterol", "number", "< 100", "mg/dL", "Normal: < 100")}
-        {f("cholHDL", "HDL Cholesterol", "number", "> 40", "mg/dL", "Normal (M): > 40")}
-        {f("triglycerides", "Triglycerides", "number", "< 150", "mg/dL", "Normal: < 150")}
-      </div>
-
-      <SectionLabel>Blood Count</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        {f("hemoglobin", "Hemoglobin", "number", "13.5–17.5", "g/dL")}
-        {f("hematocrit", "Hematocrit", "number", "41–53", "%")}
-        {f("wbc", "White Blood Cells", "number", "4.5–11", "×10³/µL")}
-        {f("platelets", "Platelets", "number", "150–400", "×10³/µL")}
-      </div>
-
-      <SectionLabel>Uric Acid &amp; Kidney</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        {f("uricAcid", "Uric Acid", "number", "3.5–7.2", "mg/dL")}
-        {f("creatinine", "Creatinine", "number", "0.7–1.3", "mg/dL")}
-        {f("bun", "BUN", "number", "7–20", "mg/dL")}
-      </div>
+        return (
+          <div key={catName} className="flex flex-col gap-3">
+            <SectionLabel>{catName}</SectionLabel>
+            <div className="grid grid-cols-2 gap-3">
+              {fields.map(f => (
+                <FieldInput
+                  key={f.isStandard ? f.key : `dyn-${f.index}-${f.label}`}
+                  label={f.label}
+                  value={f.value}
+                  unit={f.unit}
+                  hint={f.hint}
+                  autofilled={af(f.isStandard ? f.key : f.label)}
+                  onChange={v => f.isStandard ? onChange(f.key, v) : onDynamicChange?.(f.index, v)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
 
       <SectionLabel>Notes</SectionLabel>
       <div className="flex flex-col gap-1.5">
@@ -193,8 +250,6 @@ function HealthForm({
   );
 }
 
-// ─── Record Card ──────────────────────────────────────────────────────────────
-
 function RecordCard({
   record, onEdit, onDelete,
 }: {
@@ -204,18 +259,23 @@ function RecordCard({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const chips = MARKERS.flatMap(([label, field, low, high, unit]) => {
+  const standardChips = MARKERS.flatMap(([label, field, low, high, unit]) => {
     const val = record[field] as string;
     const st = getStatus(val, low, high);
     return st === "empty" ? [] : [{ label, val, unit, st }];
   });
+
+  const dynamicChips = Object.entries(record.additionalMetrics || {}).map(([label, val]) => {
+    return { label, val: String(val), unit: "", st: "ok" }; 
+  });
+
+  const chips = [...standardChips, ...dynamicChips];
 
   return (
     <div
       className="squircle bg-background border border-foreground/10 hover:border-richcerulean/40 transition-all duration-200 overflow-hidden"
       style={{ animation: "fadeUp 0.25s ease-out" }}
     >
-      {/* Header row */}
       <div className="flex items-center justify-between px-5 py-4 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 squircle bg-richcerulean/10 flex items-center justify-center shrink-0">
@@ -232,11 +292,10 @@ function RecordCard({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Quick chips preview */}
           <div className="hidden sm:flex gap-1.5">
-            {chips.slice(0, 3).map(c => (
+            {chips.slice(0, 3).map((c, i) => (
               <span
-                key={c.label}
+                key={`${c.label}-${i}`}
                 className={`px-2 py-0.5 rounded-full border text-[10px] font-mono font-medium ${chipClass[c.st]}`}
               >
                 {c.label} {chipIcon[c.st]}
@@ -273,16 +332,15 @@ function RecordCard({
         </div>
       </div>
 
-      {/* Expanded detail */}
       {expanded && (
         <div
           className="border-t border-foreground/10 px-5 py-4 flex flex-col gap-3"
           style={{ animation: "fadeUp 0.2s ease-out" }}
         >
           <div className="flex flex-wrap gap-1.5">
-            {chips.map(c => (
+            {chips.map((c, i) => (
               <span
-                key={c.label}
+                key={`${c.label}-${i}`}
                 className={`px-2.5 py-1 rounded-full border text-[11px] font-mono font-medium ${chipClass[c.st]}`}
               >
                 {c.label}: {c.val} {c.unit} {chipIcon[c.st]}
@@ -304,18 +362,17 @@ function RecordCard({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Documents() {
-  // State
   const [activeTab, setActiveTab] = useState<Tab>("add");
-  const [inputMethod, setInputMethod] = useState<InputMethod>("pdf");
+  const [inputMethod, setInputMethod] = useState<InputMethod>("file");
   const [records, setRecords] = useState<HealthRecord[]>([]);
 
   const [formValues, setFormValues] = useState({ ...EMPTY_RECORD });
+  const [dynamicParams, setDynamicParams] = useState<DynamicParam[]>([]);
   const [autofilled, setAutofilled] = useState<Set<string>>(new Set());
 
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [ocrState, setOcrState] = useState<OcrState>("idle");
   const [isDragging, setIsDragging] = useState(false);
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
@@ -327,49 +384,62 @@ export default function Documents() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Toast helper
   const showToast = useCallback((msg: string, warn = false) => {
     setToast({ msg, warn });
     setTimeout(() => setToast(null), 2800);
   }, []);
 
-  // Fetch documents on mount
   useEffect(() => {
     const fetchDocs = async () => {
       try {
         const token = localStorage.getItem("access_token");
         if (!token) return;
+        
         const resp = await getDocuments(token);
+        
         if (resp && resp.documents) {
-          const fetchedRecords = resp.documents.map((d: any) => ({
-            id: d.id,
-            createdAt: new Date(d.created_at),
+          const fetchedRecords = resp.documents.map((d: any) => {
+            let meta: any = {};
+            if (d.sample_meta) {
+              try {
+                meta = typeof d.sample_meta === "string" ? JSON.parse(d.sample_meta) : d.sample_meta;
+              } catch (e) { console.error("Gagal parse sample_meta", e); }
+            }
 
-            reportDate: d.metrics?.report_date || "",
-            lab: d.metrics?.lab || "",
-            patientName: d.metrics?.patient_name || "",
-            dob: d.metrics?.dob || "",
+            const source = { ...d, ...meta, ...(d.metrics || {}) };
 
-            glucoseFasting: d.metrics?.glucose_fasting || "",
-            glucosePostmeal: d.metrics?.glucose_postmeal || "",
-            hba1c: d.metrics?.hba1c || "",
+            return {
+              id: d.document_id || d.id || Date.now().toString(),
+              createdAt: new Date(d.uploaded_at || d.created_at || new Date()),
 
-            cholTotal: d.metrics?.chol_total || "",
-            cholLDL: d.metrics?.chol_ldl || "",
-            cholHDL: d.metrics?.chol_hdl || "",
-            triglycerides: d.metrics?.triglycerides || "",
+              reportDate: source.date || source.report_date || source.reportDate || "",
+              lab: source.lab_name || source.lab || "",
+              patientName: source.patient_name || source.patientName || "",
+              dob: source.dob || "",
 
-            hemoglobin: d.metrics?.hemoglobin || "",
-            hematocrit: d.metrics?.hematocrit || "",
-            wbc: d.metrics?.wbc || "",
-            platelets: d.metrics?.platelets || "",
+              glucoseFasting: source.glucose_fasting || source.glucoseFasting || "",
+              glucosePostmeal: source.glucose_postmeal || source.glucosePostmeal || "",
+              hba1c: source.hba1c || "",
 
-            uricAcid: d.metrics?.uric_acid || "",
-            creatinine: d.metrics?.creatinine || "",
-            bun: d.metrics?.bun || "",
+              cholTotal: source.chol_total || source.cholTotal || "",
+              cholLDL: source.chol_ldl || source.cholLDL || "",
+              cholHDL: source.chol_hdl || source.cholHDL || "",
+              triglycerides: source.triglycerides || "",
 
-            notes: d.metrics?.notes || "",
-          }));
+              hemoglobin: source.hemoglobin || source.hb || "",
+              hematocrit: source.hematocrit || source.ht || "",
+              wbc: source.wbc || source.leukosit || "",
+              platelets: source.platelets || source.trombosit || "",
+
+              uricAcid: source.uric_acid || source.uricAcid || "",
+              creatinine: source.creatinine || "",
+              bun: source.bun || "",
+
+              notes: source.notes || "",
+              
+              additionalMetrics: d.additional_metrics || source.additional_metrics || source.additionalMetrics || {},
+            };
+          });
 
           setRecords(fetchedRecords);
         }
@@ -380,7 +450,6 @@ export default function Documents() {
     fetchDocs();
   }, []);
 
-  // OCR 
   const runOCR = useCallback(async (file: File) => {
     setOcrState("processing");
     try {
@@ -391,13 +460,23 @@ export default function Documents() {
 
       if (resp.document_id) setCurrentDocumentId(resp.document_id);
 
-      const extracted = resp.extracted_data || resp.metrics;
+      let extracted: Partial<typeof EMPTY_RECORD> = {};
+      let additionalParams: DynamicParam[] = [];
 
-      if (!extracted) {
-        throw new Error("OCR extraction failed");
+      if (resp.preview) {
+        const parsed = mapPreviewToForm(resp.preview);
+        extracted = parsed.mapped || {};
+        additionalParams = parsed.dynamicFields;
+      } else {
+        extracted = resp.extracted_data ?? resp.metrics ?? {};
       }
+
       setFormValues({ ...EMPTY_RECORD, ...extracted });
-      setAutofilled(new Set(Object.keys(extracted)));
+      setDynamicParams(additionalParams);
+
+      const filledKeys = Object.keys(extracted).filter(k => (extracted as any)[k] !== "");
+      setAutofilled(new Set([...filledKeys, ...additionalParams.map(p => p.label)]));
+
       setOcrState("done");
       showToast("OCR complete — please review the fields");
     } catch (error) {
@@ -408,24 +487,32 @@ export default function Documents() {
   }, [showToast]);
 
   const handleFileSelect = (file: File) => {
-    if (file.type !== "application/pdf") { showToast("Please upload a PDF file", true); return; }
+    const isValid = file.type === "application/pdf" || file.type.startsWith("image/");
+    if (!isValid) { showToast("Please upload a PDF or Image file", true); return; }
     if (file.size > 10 * 1024 * 1024) { showToast("File exceeds the 10 MB limit", true); return; }
-    setPdfFile(file);
+    setSelectedFile(file);
     runOCR(file);
   };
 
   const clearFile = () => {
-    setPdfFile(null);
+    setSelectedFile(null);
     setOcrState("idle");
     setFormValues({ ...EMPTY_RECORD });
+    setDynamicParams([]);
     setAutofilled(new Set());
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleFormChange = (field: keyof typeof EMPTY_RECORD, value: string) => {
     setFormValues(p => ({ ...p, [field]: value }));
-    // Remove OCR highlight when user manually edits a field
     setAutofilled(p => { const n = new Set(p); n.delete(field); return n; });
+  };
+
+  const handleDynamicChange = (index: number, value: string) => {
+    const newParams = [...dynamicParams];
+    newParams[index].value = value;
+    setDynamicParams(newParams);
+    setAutofilled(p => { const n = new Set(p); n.delete(newParams[index].label); return n; });
   };
 
   const handleSubmit = async () => {
@@ -436,37 +523,64 @@ export default function Documents() {
 
     try {
       const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("Not authenticated");
 
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
+      const dynamicMetrics = dynamicParams.reduce(
+        (acc, curr) => ({ ...acc, [curr.label]: curr.value }), 
+        {}
+      );
 
-      let response;
+      const apiPayload = {
+        patient_name: formValues.patientName,
+        report_date: formValues.reportDate,
+        lab_name: formValues.lab,
+        metrics: {
+          report_date: formValues.reportDate,
+          lab: formValues.lab,
+          patient_name: formValues.patientName,
+          dob: formValues.dob,
+          glucose_fasting: formValues.glucoseFasting,
+          glucose_postmeal: formValues.glucosePostmeal,
+          hba1c: formValues.hba1c,
+          chol_total: formValues.cholTotal,
+          chol_ldl: formValues.cholLDL,
+          chol_hdl: formValues.cholHDL,
+          triglycerides: formValues.triglycerides,
+          hemoglobin: formValues.hemoglobin,
+          hematocrit: formValues.hematocrit,
+          wbc: formValues.wbc,
+          platelets: formValues.platelets,
+          uric_acid: formValues.uricAcid,
+          creatinine: formValues.creatinine,
+          bun: formValues.bun,
+          notes: formValues.notes,
+          additional_metrics: dynamicMetrics
+        }
+      };
 
       if (inputMethod === "manual") {
-        response = await createManualDocument(
-          token,
-          formValues
-        );
+        await createManualDocument(token, apiPayload as any);
       } else {
-        if (!currentDocumentId) {
-          throw new Error("Missing document id");
-        }
-
-        response = await confirmDocument(
-          token,
-          currentDocumentId,
-          formValues
-        );
+        if (!currentDocumentId) throw new Error("Missing document id");
+        await confirmDocument(token, currentDocumentId, apiPayload as any);
       }
     } catch (error) {
       console.error(error);
       showToast("Failed to save document to server", true);
+      return; // Berhenti jika gagal save ke server
     }
 
-    const rec: HealthRecord = { id: currentDocumentId || Date.now().toString(), createdAt: new Date(), ...formValues };
+    // Jika berhasil save ke server, baru update UI lokal
+    const rec: HealthRecord = { 
+      id: currentDocumentId || Date.now().toString(), 
+      createdAt: new Date(), 
+      ...formValues,
+      additionalMetrics: dynamicParams.reduce((acc, curr) => ({ ...acc, [curr.label]: curr.value }), {})
+    };
     setRecords(p => [rec, ...p]);
+    
     setFormValues({ ...EMPTY_RECORD });
+    setDynamicParams([]);
     setAutofilled(new Set());
     setCurrentDocumentId(null);
     clearFile();
@@ -474,15 +588,34 @@ export default function Documents() {
     setActiveTab("records");
   };
 
+
   const openEdit = (r: HealthRecord) => {
-    const { id, createdAt, ...rest } = r;
-    setEditValues(rest);
+    setEditValues(r);
+
+    const params: DynamicParam[] = Object.entries(r.additionalMetrics || {}).map(
+      ([label, value]) => ({
+        label,
+        value: String(value),
+        unit: ""
+      })
+    );
+    
+    setDynamicParams(params);
     setModal({ type: "edit", record: r });
   };
 
   const saveEdit = () => {
     if (modal.type !== "edit") return;
-    setRecords(p => p.map(r => r.id === modal.record.id ? { ...modal.record, ...editValues } : r));
+
+    const updatedRecord: HealthRecord = {
+    ...modal.record,
+    ...editValues,
+    additionalMetrics: dynamicParams.reduce(
+      (acc, curr) => ({ ...acc, [curr.label]: curr.value }), 
+      {}
+    )
+  };
+    setRecords(p => p.map(r => r.id === modal.record.id ? updatedRecord : r));
     setModal({ type: "none" });
     showToast("Record updated");
   };
@@ -508,7 +641,6 @@ export default function Documents() {
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-300 text-foreground">
 
-      {/* ══ Header — mirrors chatbot exactly ══ */}
       <header className="w-[70%] mt-5 z-10 flex -space-x-2.75 items-center">
         <div className="flex flex-col w-full px-6 py-4 squircle bg-background">
           <h1 className="text-xl font-semibold text-foreground">Health Documents</h1>
@@ -516,7 +648,6 @@ export default function Documents() {
         </div>
       </header>
 
-      {/* ══ Tabs ══ */}
       <div className="w-[70%] z-10 mt-4 flex gap-2">
         {(["add", "records"] as Tab[]).map(tab => (
           <button
@@ -533,16 +664,13 @@ export default function Documents() {
         ))}
       </div>
 
-      {/* ══ Main ══ */}
       <main className="relative w-[70%] z-10 mt-4 mb-16 flex flex-col gap-4">
 
-        {/* ═══ ADD TAB ═══ */}
         {activeTab === "add" && (
           <div className="squircle bg-background p-8 flex flex-col gap-5" style={{ animation: "fadeUp 0.25s ease-out" }}>
 
-            {/* Input method toggle */}
             <div className="flex gap-2">
-              {(["pdf", "manual"] as InputMethod[]).map(m => (
+              {(["file", "manual"] as InputMethod[]).map(m => (
                 <button
                   key={m}
                   onClick={() => { setInputMethod(m); if (m === "manual") clearFile(); }}
@@ -551,16 +679,15 @@ export default function Documents() {
                     : "text-foreground/50 border-foreground/15 hover:border-foreground/30 hover:text-foreground/70"
                     }`}
                 >
-                  {m === "pdf" ? <FileText size={14} /> : <PenLine size={14} />}
-                  {m === "pdf" ? "Upload PDF" : "Manual Entry"}
+                  {m === "file" ? <ImageIcon size={14} /> : <PenLine size={14} />}
+                  {m === "file" ? "Upload PDF / Photo" : "Manual Entry"}
                 </button>
               ))}
             </div>
 
-            {/* PDF section */}
-            {inputMethod === "pdf" && (
+            {inputMethod === "file" && (
               <div className="flex flex-col gap-3">
-                {!pdfFile ? (
+                {!selectedFile ? (
                   <div
                     onClick={() => fileInputRef.current?.click()}
                     onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
@@ -579,14 +706,14 @@ export default function Documents() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf"
+                      accept=".pdf, image/jpeg, image/png, image/jpg"
                       className="hidden"
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }}
                     />
                     <FileUp size={38} className="text-richcerulean/50" />
                     <div>
                       <p className="font-semibold text-sm text-foreground">
-                        Drop your PDF health report here
+                        Drop your PDF or Photo here
                       </p>
                       <p className="text-[12px] font-mono text-foreground/40 mt-1">
                         or click to browse · max 10 MB
@@ -596,12 +723,16 @@ export default function Documents() {
                 ) : (
                   <div className="squircle border border-foreground/15 bg-background p-4 flex items-center gap-3">
                     <div className="w-10 h-10 squircle bg-richcerulean/10 flex items-center justify-center shrink-0">
-                      <FileText size={18} className="text-richcerulean" />
+                      {selectedFile.type.startsWith("image/") ? (
+                         <ImageIcon size={18} className="text-richcerulean" />
+                      ) : (
+                         <FileText size={18} className="text-richcerulean" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{pdfFile.name}</p>
+                      <p className="text-sm font-medium truncate">{selectedFile.name}</p>
                       <p className="text-[11px] font-mono text-foreground/40 mt-0.5">
-                        {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                       {ocrState === "processing" && (
                         <div className="mt-2 flex items-center gap-2">
@@ -657,16 +788,17 @@ export default function Documents() {
               </div>
             )}
 
-            {/* Form — shown for manual always, for pdf once file is selected */}
-            {(inputMethod === "manual" || pdfFile) && (
+            {(inputMethod === "manual" || selectedFile) && (
               <div style={{ animation: "fadeUp 0.2s ease-out" }}>
                 <HealthForm
                   values={formValues}
                   autofilled={autofilled}
+                  dynamicParams={dynamicParams}
+                  showEmptyFields={inputMethod === "manual"} 
                   onChange={handleFormChange}
+                  onDynamicChange={handleDynamicChange}
                 />
 
-                {/* Submit footer — mirrors chatbot input footer style */}
                 <div className="mt-8 flex -space-x-2.75 items-center">
                   <div className="flex flex-col w-full squircle bg-foreground/5 px-5 py-3">
                     <p className="text-[11px] font-mono text-foreground/40">
@@ -686,15 +818,14 @@ export default function Documents() {
               </div>
             )}
 
-            {inputMethod === "pdf" && !pdfFile && (
+            {inputMethod === "file" && !selectedFile && (
               <p className="text-[12px] font-mono text-foreground/30 text-center mt-2">
-                Upload a PDF to auto-fill the form, or switch to Manual Entry.
+                Upload a PDF or Photo to auto-fill the form, or switch to Manual Entry.
               </p>
             )}
           </div>
         )}
 
-        {/* ═══ RECORDS TAB ═══ */}
         {activeTab === "records" && (
           <div style={{ animation: "fadeUp 0.25s ease-out" }}>
             {records.length === 0 ? (
@@ -731,7 +862,6 @@ export default function Documents() {
         )}
       </main>
 
-      {/* ═══ EDIT DRAWER ═══ */}
       {modal.type === "edit" && (
         <>
           <div
@@ -742,7 +872,6 @@ export default function Documents() {
             className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-lg bg-background flex flex-col"
             style={{ animation: "slideIn 0.25s ease-out", boxShadow: "-8px 0 40px rgba(0,0,0,0.12)" }}
           >
-            {/* Drawer header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
               <div>
                 <h2 className="font-semibold text-foreground">Edit Record</h2>
@@ -758,16 +887,21 @@ export default function Documents() {
               </button>
             </div>
 
-            {/* Scrollable form */}
             <div className="flex-1 overflow-y-auto px-6 py-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-foreground/10 [&::-webkit-scrollbar-thumb]:rounded-full">
               <HealthForm
                 values={editValues}
                 autofilled={new Set()}
+                dynamicParams={dynamicParams}
+                showEmptyFields={false}
+                onDynamicChange={(index, val) => {
+                  const newParams = [...dynamicParams];
+                  newParams[index].value = val;
+                  setDynamicParams(newParams);
+                }}
                 onChange={(f, v) => setEditValues(p => ({ ...p, [f]: v }))}
               />
             </div>
 
-            {/* Drawer footer — same connector style as chatbot input */}
             <div className="border-t border-foreground/10 px-6 py-4 flex -space-x-2.75 items-center">
               <div className="flex flex-col w-full squircle bg-foreground/5 px-5 py-3">
                 <p className="text-[11px] font-mono text-foreground/40">Changes are saved locally</p>
@@ -786,7 +920,6 @@ export default function Documents() {
         </>
       )}
 
-      {/* ═══ DELETE CONFIRM ═══ */}
       {modal.type === "delete" && (
         <>
           <div
@@ -827,7 +960,6 @@ export default function Documents() {
         </>
       )}
 
-      {/* ═══ TOAST ═══ */}
       {toast && (
         <div
           className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none flex items-center gap-2 px-5 py-2.5 squircle font-mono text-[12px] font-medium ${toast.warn ? "bg-amber-500 text-white" : "bg-foreground text-background"

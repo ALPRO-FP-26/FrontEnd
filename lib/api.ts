@@ -63,8 +63,6 @@ export type HealthRecordResponse = {
   created_at: string;
 };
 
-// ─── Token helpers ────────────────────────────────────────────────────────────
-
 export function getAccessToken() {
   return typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 }
@@ -113,26 +111,25 @@ async function request<T>(path: string, options: RequestInit, retry = true): Pro
 
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
 
-  // Auto-refresh on 401
   if (response.status === 401 && retry) {
     const newToken = await doRefresh();
     if (newToken) {
-      // Retry with new token
       const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
       return request<T>(path, { ...options, headers: retryHeaders }, false);
     }
-    // Refresh failed — kick to login
     if (typeof window !== "undefined") window.location.href = "/login";
     throw new Error("Session expired. Please sign in again.");
   }
 
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
-  if (!response.ok || !payload?.status) {
+  if (!response.ok) {
     throw new Error(payload?.error || payload?.message || "Request failed");
   }
-
-  return payload.data as T;
+  if (payload && payload.data !== undefined){
+    return payload.data as T;
+  }
+  return payload as T;
 }
 
 export function login(email: string, password: string) {
@@ -179,8 +176,6 @@ export function saveAuth(tokens: AuthTokens) {
   localStorage.setItem("role", tokens.role);
 }
 
-// -- Chat API --
-
 export function sendChatMessage(accessToken: string, message: string, sessionId?: string) {
   return request<ChatResponse>("/chat", {
     method: "POST",
@@ -217,8 +212,6 @@ export function clearChatHistory(accessToken: string) {
     },
   });
 }
-
-// -- Document API --
 
 export function uploadDocument(accessToken: string, file: File, documentType: string = "lab_result") {
   const formData = new FormData();
