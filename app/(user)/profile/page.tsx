@@ -1,28 +1,90 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   ArrowLeft, User, ActivitySquare, Save, CheckCircle, Scale, Droplet, Pill
 } from "lucide-react";
+import { getHealthProfile, updateHealthProfile, type HealthProfile } from "@/lib/api";
 
 export default function Profile() {
-  const [age, setAge] = useState("35");
-  const [sex, setSex] = useState("male");
-  const [height, setHeight] = useState("170");
-  const [weight, setWeight] = useState("72.5");
+  const [age, setAge] = useState("");
+  const [sex, setSex] = useState("");
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
   
-  const [bloodType, setBloodType] = useState("O+");
+  const [bloodType, setBloodType] = useState("");
   const [smokingStatus, setSmokingStatus] = useState("never");
-  const [conditions, setConditions] = useState("Hypertension");
+  const [conditions, setConditions] = useState("");
   const [medications, setMedications] = useState("");
   
   const [isSaved, setIsSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const parseNumber = (value: string) => {
+    const parsed = Number(value);
+    return value.trim() === "" || Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const applyProfile = (profile: HealthProfile) => {
+    setAge(profile.age == null ? "" : String(profile.age));
+    setSex(profile.biological_sex ?? "");
+    setHeight(profile.height_cm == null ? "" : String(profile.height_cm));
+    setWeight(profile.weight_kg == null ? "" : String(profile.weight_kg));
+    setBloodType(profile.blood_type ?? "");
+    setSmokingStatus(profile.smoking_status || "never");
+    setConditions(profile.existing_conditions ?? "");
+    setMedications(profile.current_medications ?? "");
+  };
+
+  const buildProfilePayload = (): HealthProfile => ({
+    age: parseNumber(age),
+    biological_sex: sex,
+    height_cm: parseNumber(height),
+    weight_kg: parseNumber(weight),
+    blood_type: bloodType,
+    smoking_status: smokingStatus,
+    existing_conditions: conditions,
+    current_medications: medications,
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      setIsLoading(false);
+      setError("Please sign in to manage your profile.");
+      return;
+    }
+
+    getHealthProfile(token)
+      .then(applyProfile)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+    setError("");
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      setError("Please sign in to save your profile.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const profile = await updateHealthProfile(token, buildProfilePayload());
+      applyProfile(profile);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save profile");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const inputClass = "w-full bg-gray-300 border border-foreground/15 squircle px-4 py-3.5 outline-none focus:border-richcerulean transition-all text-sm text-foreground placeholder:text-foreground/30";
@@ -46,6 +108,17 @@ export default function Profile() {
       <main className="w-full max-w-3xl flex flex-col gap-6 px-6 mt-8" style={{ animation: "fadeUp 0.4s ease-out" }}>
         
         <form onSubmit={handleSave} className="squircle bg-background border border-foreground/10 shadow-sm p-6 sm:p-10 flex flex-col gap-8">
+          {error && (
+            <div className="squircle border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="squircle border border-foreground/10 bg-gray-300 px-4 py-3 text-sm text-foreground/60">
+              Loading profile...
+            </div>
+          )}
           
           <div className="flex items-center gap-4 border-b border-foreground/10 pb-6">
             <div className="w-16 h-16 squircle bg-richcerulean/10 flex items-center justify-center text-richcerulean shrink-0">
@@ -131,7 +204,7 @@ export default function Profile() {
                 <option value="O-">O-</option>
                 <option value="AB+">AB+</option>
                 <option value="AB-">AB-</option>
-                <option value="Unknown">I don't know</option>
+                <option value="Unknown">I don&apos;t know</option>
               </select>
             </div>
             
@@ -191,9 +264,10 @@ export default function Profile() {
             )}
             <button 
               type="submit"
+              disabled={isSaving}
               className="px-8 py-3 squircle bg-richcerulean text-background font-medium hover:bg-foreground transition-colors flex items-center gap-2 shadow-sm"
             >
-              <Save size={18} /> Save Changes
+              <Save size={18} /> {isSaving ? "Saving..." : "Save Changes"}
             </button>
           </div>
 

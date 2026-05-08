@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Mail, Lock, ArrowRight, Activity } from "lucide-react";
 import Button from "@/components/button";
 import { ArrowLeft } from "lucide-react";
+import { login, saveAuth } from "@/lib/api";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 function FieldInput({
   label, value, type = "text", placeholder, icon: Icon, onChange,
@@ -37,12 +40,29 @@ function FieldInput({
 }
 
 export default function LoginPage() {
+  const ready = useAuthGuard(false); // redirect to /dashboard if already logged in
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  if (!ready) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login", { email, password });
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const tokens = await login(email, password);
+      saveAuth(tokens);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -73,6 +93,12 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {error && (
+              <div className="squircle border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
             <FieldInput
               label="Email Address"
               type="email"
@@ -106,13 +132,15 @@ export default function LoginPage() {
             </div>
 
             <Button
+              type="submit"
+              disabled={isSubmitting}
               className="mt-4 w-full flex justify-center py-3.5 !border-none"
               bgClass="bg-richcerulean text-background"
-              hoverClass="hover:bg-foreground hover:text-background"
-              title="Sign In"
+              hoverClass="hover:bg-foreground hover:text-background disabled:opacity-60 disabled:hover:bg-richcerulean disabled:hover:text-background"
+              title={isSubmitting ? "Signing in" : "Sign In"}
             >
               <div className="flex items-center gap-2 px-2">
-                <span className="font-medium text-[15px]">Sign In</span>
+                <span className="font-medium text-[15px]">{isSubmitting ? "Signing in..." : "Sign In"}</span>
                 <ArrowRight size={18} />
               </div>
             </Button>

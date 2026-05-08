@@ -1,13 +1,20 @@
 'use client';
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   FileUp, PenLine, FileText, X, CheckCircle, Loader2,
   FlaskConical, Pencil, Trash2, ClipboardList, FilePlus2,
   ChevronDown, ChevronUp, AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/button";
-import { HealthRecord, EMPTY_RECORD, MOCK_OCR_DATA, getStatus } from "@/lib/healthRecord";
+import { HealthRecord, EMPTY_RECORD, getStatus } from "@/lib/healthRecord";
+import {
+  uploadDocument,
+  getDocuments,
+  confirmDocument,
+  createManualDocument,
+  deleteDocument as apiDeleteDocument,
+} from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,48 +26,22 @@ type ModalState =
   | { type: "edit"; record: HealthRecord }
   | { type: "delete"; id: string; name: string };
 
-// ─── Seed data ────────────────────────────────────────────────────────────────
-
-const DEMO: HealthRecord = {
-  id: "demo-1",
-  createdAt: new Date("2025-03-15"),
-  reportDate: "2025-03-15",
-  lab: "Kimia Farma",
-  patientName: "Ahmad Fauzi",
-  dob: "1980-09-03",
-  glucoseFasting: "88",
-  glucosePostmeal: "115",
-  hba1c: "5.1",
-  cholTotal: "194",
-  cholLDL: "92",
-  cholHDL: "55",
-  triglycerides: "130",
-  hemoglobin: "15.1",
-  hematocrit: "45",
-  wbc: "6.8",
-  platelets: "265",
-  uricAcid: "5.8",
-  creatinine: "0.88",
-  bun: "14",
-  notes: "All values within normal range. Continue current lifestyle.",
-};
-
 // ─── Markers for status chips ─────────────────────────────────────────────────
 
 const MARKERS: [string, keyof HealthRecord, number, number, string][] = [
-  ["Glucose (F)", "glucoseFasting",  70,   99,   "mg/dL"],
-  ["HbA1c",       "hba1c",           0,    5.7,  "%"    ],
-  ["Chol",        "cholTotal",       0,    200,  "mg/dL"],
-  ["LDL",         "cholLDL",         0,    100,  "mg/dL"],
-  ["HDL",         "cholHDL",         40,   999,  "mg/dL"],
-  ["Trig",        "triglycerides",   0,    150,  "mg/dL"],
-  ["Uric Acid",   "uricAcid",        3.5,  7.2,  "mg/dL"],
+  ["Glucose (F)", "glucoseFasting", 70, 99, "mg/dL"],
+  ["HbA1c", "hba1c", 0, 5.7, "%"],
+  ["Chol", "cholTotal", 0, 200, "mg/dL"],
+  ["LDL", "cholLDL", 0, 100, "mg/dL"],
+  ["HDL", "cholHDL", 40, 999, "mg/dL"],
+  ["Trig", "triglycerides", 0, 150, "mg/dL"],
+  ["Uric Acid", "uricAcid", 3.5, 7.2, "mg/dL"],
 ];
 
 const chipClass: Record<string, string> = {
-  ok:   "border-green-400/60  bg-green-50   text-green-700",
+  ok: "border-green-400/60  bg-green-50   text-green-700",
   warn: "border-amber-400/60  bg-amber-50   text-amber-700",
-  bad:  "border-red-400/60    bg-red-50     text-red-600",
+  bad: "border-red-400/60    bg-red-50     text-red-600",
 };
 const chipIcon: Record<string, string> = { ok: "✓", warn: "!", bad: "✕" };
 
@@ -90,11 +71,10 @@ function FieldInput({
       <label className="text-[10px] font-mono font-semibold text-foreground/50 uppercase tracking-widest">
         {label}
       </label>
-      <div className={`relative flex items-center squircle border transition-all duration-200 ${
-        autofilled
-          ? "border-green-400 bg-green-50/50"
-          : "border-foreground/15 bg-background focus-within:border-richcerulean"
-      }`}>
+      <div className={`relative flex items-center squircle border transition-all duration-200 ${autofilled
+        ? "border-green-400 bg-green-50/50"
+        : "border-foreground/15 bg-background focus-within:border-richcerulean"
+        }`}>
         <input
           type={type}
           step={type === "number" ? "any" : undefined}
@@ -155,40 +135,40 @@ function HealthForm({
     <div className="flex flex-col gap-4">
       <SectionLabel>Patient Info</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
-        {f("reportDate",  "Report Date",   "date")}
-        {f("lab",         "Lab / Source",  "text", "e.g. Prodia, Kimia Farma")}
-        {f("patientName", "Patient Name",  "text", "Full name")}
-        {f("dob",         "Date of Birth", "date")}
+        {f("reportDate", "Report Date", "date")}
+        {f("lab", "Lab / Source", "text", "e.g. Prodia, Kimia Farma")}
+        {f("patientName", "Patient Name", "text", "Full name")}
+        {f("dob", "Date of Birth", "date")}
       </div>
 
       <SectionLabel>Blood Sugar</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
-        {f("glucoseFasting",  "Fasting Glucose",        "number", "70–99", "mg/dL", "Normal: 70–99")}
+        {f("glucoseFasting", "Fasting Glucose", "number", "70–99", "mg/dL", "Normal: 70–99")}
         {f("glucosePostmeal", "Post-meal Glucose (2h)", "number", "< 140", "mg/dL", "Normal: < 140")}
-        {f("hba1c",           "HbA1c",                  "number", "< 5.7", "%",     "Normal: < 5.7")}
+        {f("hba1c", "HbA1c", "number", "< 5.7", "%", "Normal: < 5.7")}
       </div>
 
       <SectionLabel>Cholesterol Panel</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
-        {f("cholTotal",     "Total Cholesterol", "number", "< 200", "mg/dL", "Normal: < 200")}
-        {f("cholLDL",       "LDL Cholesterol",   "number", "< 100", "mg/dL", "Normal: < 100")}
-        {f("cholHDL",       "HDL Cholesterol",   "number", "> 40",  "mg/dL", "Normal (M): > 40")}
-        {f("triglycerides", "Triglycerides",     "number", "< 150", "mg/dL", "Normal: < 150")}
+        {f("cholTotal", "Total Cholesterol", "number", "< 200", "mg/dL", "Normal: < 200")}
+        {f("cholLDL", "LDL Cholesterol", "number", "< 100", "mg/dL", "Normal: < 100")}
+        {f("cholHDL", "HDL Cholesterol", "number", "> 40", "mg/dL", "Normal (M): > 40")}
+        {f("triglycerides", "Triglycerides", "number", "< 150", "mg/dL", "Normal: < 150")}
       </div>
 
       <SectionLabel>Blood Count</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
-        {f("hemoglobin", "Hemoglobin",        "number", "13.5–17.5", "g/dL")}
-        {f("hematocrit", "Hematocrit",        "number", "41–53",     "%")}
-        {f("wbc",        "White Blood Cells", "number", "4.5–11",    "×10³/µL")}
-        {f("platelets",  "Platelets",         "number", "150–400",   "×10³/µL")}
+        {f("hemoglobin", "Hemoglobin", "number", "13.5–17.5", "g/dL")}
+        {f("hematocrit", "Hematocrit", "number", "41–53", "%")}
+        {f("wbc", "White Blood Cells", "number", "4.5–11", "×10³/µL")}
+        {f("platelets", "Platelets", "number", "150–400", "×10³/µL")}
       </div>
 
       <SectionLabel>Uric Acid &amp; Kidney</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
-        {f("uricAcid",   "Uric Acid",  "number", "3.5–7.2", "mg/dL")}
+        {f("uricAcid", "Uric Acid", "number", "3.5–7.2", "mg/dL")}
         {f("creatinine", "Creatinine", "number", "0.7–1.3", "mg/dL")}
-        {f("bun",        "BUN",        "number", "7–20",    "mg/dL")}
+        {f("bun", "BUN", "number", "7–20", "mg/dL")}
       </div>
 
       <SectionLabel>Notes</SectionLabel>
@@ -196,11 +176,10 @@ function HealthForm({
         <label className="text-[10px] font-mono font-semibold text-foreground/50 uppercase tracking-widest">
           Doctor&apos;s Comments
         </label>
-        <div className={`squircle border transition-all duration-200 ${
-          af("notes")
-            ? "border-green-400 bg-green-50/50"
-            : "border-foreground/15 bg-background focus-within:border-richcerulean"
-        }`}>
+        <div className={`squircle border transition-all duration-200 ${af("notes")
+          ? "border-green-400 bg-green-50/50"
+          : "border-foreground/15 bg-background focus-within:border-richcerulean"
+          }`}>
           <textarea
             value={values.notes}
             onChange={e => onChange("notes", e.target.value)}
@@ -329,21 +308,22 @@ function RecordCard({
 
 export default function Documents() {
   // State
-  const [activeTab, setActiveTab]     = useState<Tab>("add");
+  const [activeTab, setActiveTab] = useState<Tab>("add");
   const [inputMethod, setInputMethod] = useState<InputMethod>("pdf");
-  const [records, setRecords]         = useState<HealthRecord[]>([DEMO]);
+  const [records, setRecords] = useState<HealthRecord[]>([]);
 
-  const [formValues, setFormValues]   = useState({ ...EMPTY_RECORD });
-  const [autofilled, setAutofilled]   = useState<Set<string>>(new Set());
+  const [formValues, setFormValues] = useState({ ...EMPTY_RECORD });
+  const [autofilled, setAutofilled] = useState<Set<string>>(new Set());
 
-  const [pdfFile, setPdfFile]         = useState<File | null>(null);
-  const [ocrState, setOcrState]       = useState<OcrState>("idle");
-  const [isDragging, setIsDragging]   = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [ocrState, setOcrState] = useState<OcrState>("idle");
+  const [isDragging, setIsDragging] = useState(false);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
 
-  const [modal, setModal]             = useState<ModalState>({ type: "none" });
-  const [editValues, setEditValues]   = useState({ ...EMPTY_RECORD });
+  const [modal, setModal] = useState<ModalState>({ type: "none" });
+  const [editValues, setEditValues] = useState({ ...EMPTY_RECORD });
 
-  const [toast, setToast]             = useState<{ msg: string; warn: boolean } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; warn: boolean } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -353,20 +333,83 @@ export default function Documents() {
     setTimeout(() => setToast(null), 2800);
   }, []);
 
-  // OCR (replace body of this function with real API call)
-  const runOCR = useCallback((file: File) => {
+  // Fetch documents on mount
+  useEffect(() => {
+    const fetchDocs = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) return;
+        const resp = await getDocuments(token);
+        if (resp && resp.documents) {
+          const fetchedRecords = resp.documents.map((d: any) => ({
+            id: d.id,
+            createdAt: new Date(d.created_at),
+
+            reportDate: d.metrics?.report_date || "",
+            lab: d.metrics?.lab || "",
+            patientName: d.metrics?.patient_name || "",
+            dob: d.metrics?.dob || "",
+
+            glucoseFasting: d.metrics?.glucose_fasting || "",
+            glucosePostmeal: d.metrics?.glucose_postmeal || "",
+            hba1c: d.metrics?.hba1c || "",
+
+            cholTotal: d.metrics?.chol_total || "",
+            cholLDL: d.metrics?.chol_ldl || "",
+            cholHDL: d.metrics?.chol_hdl || "",
+            triglycerides: d.metrics?.triglycerides || "",
+
+            hemoglobin: d.metrics?.hemoglobin || "",
+            hematocrit: d.metrics?.hematocrit || "",
+            wbc: d.metrics?.wbc || "",
+            platelets: d.metrics?.platelets || "",
+
+            uricAcid: d.metrics?.uric_acid || "",
+            creatinine: d.metrics?.creatinine || "",
+            bun: d.metrics?.bun || "",
+
+            notes: d.metrics?.notes || "",
+          }));
+
+          setRecords(fetchedRecords);
+        }
+      } catch (error) {
+        console.error("Failed to fetch documents:", error);
+      }
+    };
+    fetchDocs();
+  }, []);
+
+  // OCR 
+  const runOCR = useCallback(async (file: File) => {
     setOcrState("processing");
-    setTimeout(() => {
-      setFormValues({ ...MOCK_OCR_DATA });
-      setAutofilled(new Set(Object.keys(MOCK_OCR_DATA)));
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("Not authenticated");
+
+      const resp = await uploadDocument(token, file, "lab_result");
+
+      if (resp.document_id) setCurrentDocumentId(resp.document_id);
+
+      const extracted = resp.extracted_data || resp.metrics;
+
+      if (!extracted) {
+        throw new Error("OCR extraction failed");
+      }
+      setFormValues({ ...EMPTY_RECORD, ...extracted });
+      setAutofilled(new Set(Object.keys(extracted)));
       setOcrState("done");
       showToast("OCR complete — please review the fields");
-    }, 2000);
+    } catch (error) {
+      console.error(error);
+      setOcrState("idle");
+      showToast("Failed to run OCR on document", true);
+    }
   }, [showToast]);
 
   const handleFileSelect = (file: File) => {
     if (file.type !== "application/pdf") { showToast("Please upload a PDF file", true); return; }
-    if (file.size > 10 * 1024 * 1024)   { showToast("File exceeds the 10 MB limit", true); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast("File exceeds the 10 MB limit", true); return; }
     setPdfFile(file);
     runOCR(file);
   };
@@ -385,15 +428,47 @@ export default function Documents() {
     setAutofilled(p => { const n = new Set(p); n.delete(field); return n; });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formValues.reportDate || !formValues.patientName) {
       showToast("Please fill in at least Date and Patient Name", true);
       return;
     }
-    const rec: HealthRecord = { id: Date.now().toString(), createdAt: new Date(), ...formValues };
+
+    try {
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
+
+      let response;
+
+      if (inputMethod === "manual") {
+        response = await createManualDocument(
+          token,
+          formValues
+        );
+      } else {
+        if (!currentDocumentId) {
+          throw new Error("Missing document id");
+        }
+
+        response = await confirmDocument(
+          token,
+          currentDocumentId,
+          formValues
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to save document to server", true);
+    }
+
+    const rec: HealthRecord = { id: currentDocumentId || Date.now().toString(), createdAt: new Date(), ...formValues };
     setRecords(p => [rec, ...p]);
     setFormValues({ ...EMPTY_RECORD });
     setAutofilled(new Set());
+    setCurrentDocumentId(null);
     clearFile();
     showToast("Health record saved!");
     setActiveTab("records");
@@ -412,9 +487,20 @@ export default function Documents() {
     showToast("Record updated");
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (modal.type !== "delete") return;
-    setRecords(p => p.filter(r => r.id !== modal.id));
+
+    try {
+      const token = localStorage.getItem("access_token");
+      if (token && modal.id && !modal.id.startsWith("demo")) {
+        await apiDeleteDocument(token, modal.id);
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to delete document from server", true);
+    }
+
+    setRecords(p => p.filter(r => r.id !== (modal as any).id));
     setModal({ type: "none" });
     showToast("Record deleted");
   };
@@ -436,11 +522,10 @@ export default function Documents() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-2 px-5 py-2.5 squircle text-[13px] font-medium font-mono border transition-all duration-200 ${
-              activeTab === tab
-                ? "bg-richcerulean text-background border-richcerulean"
-                : "bg-background text-foreground/60 border-foreground/15 hover:border-richcerulean hover:text-richcerulean"
-            }`}
+            className={`flex items-center gap-2 px-5 py-2.5 squircle text-[13px] font-medium font-mono border transition-all duration-200 ${activeTab === tab
+              ? "bg-richcerulean text-background border-richcerulean"
+              : "bg-background text-foreground/60 border-foreground/15 hover:border-richcerulean hover:text-richcerulean"
+              }`}
           >
             {tab === "add" ? <FileUp size={14} /> : <ClipboardList size={14} />}
             {tab === "add" ? "Upload / Add" : `My Records (${records.length})`}
@@ -461,11 +546,10 @@ export default function Documents() {
                 <button
                   key={m}
                   onClick={() => { setInputMethod(m); if (m === "manual") clearFile(); }}
-                  className={`flex items-center gap-2 px-4 py-2 squircle text-[13px] font-mono font-medium border transition-all duration-150 ${
-                    inputMethod === m
-                      ? "bg-richcerulean/10 text-richcerulean border-richcerulean/40"
-                      : "text-foreground/50 border-foreground/15 hover:border-foreground/30 hover:text-foreground/70"
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 squircle text-[13px] font-mono font-medium border transition-all duration-150 ${inputMethod === m
+                    ? "bg-richcerulean/10 text-richcerulean border-richcerulean/40"
+                    : "text-foreground/50 border-foreground/15 hover:border-foreground/30 hover:text-foreground/70"
+                    }`}
                 >
                   {m === "pdf" ? <FileText size={14} /> : <PenLine size={14} />}
                   {m === "pdf" ? "Upload PDF" : "Manual Entry"}
@@ -487,11 +571,10 @@ export default function Documents() {
                       const f = e.dataTransfer.files[0];
                       if (f) handleFileSelect(f);
                     }}
-                    className={`border-2 border-dashed rounded-[40px] p-12 flex flex-col items-center gap-3 cursor-pointer text-center transition-all duration-200 ${
-                      isDragging
-                        ? "border-richcerulean bg-richcerulean/10"
-                        : "border-foreground/20 bg-richcerulean/5 hover:border-richcerulean hover:bg-richcerulean/10"
-                    }`}
+                    className={`border-2 border-dashed rounded-[40px] p-12 flex flex-col items-center gap-3 cursor-pointer text-center transition-all duration-200 ${isDragging
+                      ? "border-richcerulean bg-richcerulean/10"
+                      : "border-foreground/20 bg-richcerulean/5 hover:border-richcerulean hover:bg-richcerulean/10"
+                      }`}
                   >
                     <input
                       ref={fileInputRef}
@@ -594,7 +677,7 @@ export default function Documents() {
                   <Button
                     bgClass="bg-richcerulean text-background"
                     hoverClass="hover:bg-foreground hover:text-background"
-                    onClick={() => { clearFile(); setFormValues({ ...EMPTY_RECORD }); setActiveTab("add"); setInputMethod("pdf"); }}
+                    onClick={handleSubmit}
                     title="New record"
                   >
                     <FilePlus2 size={20} />
@@ -747,9 +830,8 @@ export default function Documents() {
       {/* ═══ TOAST ═══ */}
       {toast && (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none flex items-center gap-2 px-5 py-2.5 squircle font-mono text-[12px] font-medium ${
-            toast.warn ? "bg-amber-500 text-white" : "bg-foreground text-background"
-          }`}
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none flex items-center gap-2 px-5 py-2.5 squircle font-mono text-[12px] font-medium ${toast.warn ? "bg-amber-500 text-white" : "bg-foreground text-background"
+            }`}
           style={{ animation: "fadeUp 0.3s ease-out" }}
         >
           {toast.warn ? <AlertTriangle size={13} /> : <CheckCircle size={13} />}

@@ -166,7 +166,7 @@ export default function Dashboard() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-foreground text-sm truncate">Log Vitals</h3>
-                <p className="text-[10px] font-mono text-foreground/50 truncate uppercase tracking-widest mt-0.5">Add today's measurements</p>
+                <p className="text-[10px] font-mono text-foreground/50 truncate uppercase tracking-widest mt-0.5">Add today&apos;s measurements</p>
               </div>
               <ChevronRight size={18} className="text-foreground/30 group-hover:text-richcerulean transition-colors shrink-0" />
             </div>
