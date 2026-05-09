@@ -4,9 +4,10 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
   FileUp, PenLine, FileText, X, CheckCircle, Loader2,
   FlaskConical, Pencil, Trash2, ClipboardList, FilePlus2,
-  ChevronDown, ChevronUp, AlertTriangle, Image as ImageIcon
+  ChevronDown, ChevronUp, AlertTriangle, Image as ImageIcon, HeartPulse
 } from "lucide-react";
 import Button from "@/components/button";
+import { ManualTracker } from "@/components/health/ManualTracker";
 import { HealthRecord, EMPTY_RECORD, getStatus, MARKERS, STANDARD_FIELDS, getCategoryForLabel, formatDateToYYYYMMDD } from "@/lib/healthRecord";
 import {
   uploadDocument,
@@ -15,7 +16,11 @@ import {
   createManualDocument,
   deleteDocument as apiDeleteDocument,
   updateDocument,
+  getBloodSugarLogs,
+  getBloodPressureLogs,
+  getWeightLogs,
 } from "@/lib/api";
+import { Scale, Thermometer, Activity as BP } from "lucide-react";
 
 type Tab = "add" | "records";
 type InputMethod = "file" | "manual";
@@ -24,6 +29,8 @@ type ModalState =
   | { type: "none" }
   | { type: "edit"; record: HealthRecord }
   | { type: "delete"; id: string; name: string };
+
+type ManualMode = "lab" | "vitals";
 
 type DynamicParam = { label: string; value: string; unit: string };
 
@@ -123,7 +130,7 @@ function FieldInput({
         />
         {autofilled && (
           <span className="shrink-0 pr-3 text-[10px] font-mono text-green-600 font-semibold">
-            OCR ✓
+            OCR
           </span>
         )}
       </div>
@@ -132,6 +139,32 @@ function FieldInput({
           {unit}{hint && ` · ${hint}`}
         </span>
       )}
+    </div>
+  );
+}
+
+function ManualModeSelector({ active, onChange }: { active: ManualMode, onChange: (m: ManualMode) => void }) {
+  const modes: { id: ManualMode, label: string, icon: any }[] = [
+    { id: "lab", label: "Lab Result (Manual)", icon: <ClipboardList size={14} /> },
+    { id: "vitals", label: "Health Vitals Tracking", icon: <HeartPulse size={14} /> },
+  ];
+
+  return (
+    <div className="flex gap-2 p-1.5 bg-foreground/5 squircle border border-foreground/5">
+      {modes.map(m => (
+        <button
+          key={m.id}
+          onClick={() => onChange(m.id)}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 squircle text-[12px] font-mono font-bold uppercase transition-all duration-200 ${
+            active === m.id
+              ? "bg-background text-richcerulean shadow-sm border border-foreground/10"
+              : "text-foreground/40 hover:text-foreground/70"
+          }`}
+        >
+          {m.icon}
+          {m.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -359,11 +392,51 @@ function RecordCard({
   );
 }
 
+function VitalsCard({ type, data }: { type: string, data: any }) {
+  const isBS = type === 'blood_sugar';
+  const isBP = type === 'blood_pressure';
+  const isW = type === 'weight';
+
+  const date = new Date(data.recorded_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="squircle border border-foreground/10 bg-background p-4 flex items-center gap-4 group hover:border-richcerulean/30 transition-all">
+      <div className={`w-10 h-10 squircle flex items-center justify-center shrink-0 ${
+        isBS ? 'bg-amber-50 text-amber-500' : isBP ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'
+      }`}>
+        {isBS ? <Thermometer size={18} /> : isBP ? <BP size={18} /> : <Scale size={18} />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-0.5">
+          <p className="text-[10px] font-mono font-bold uppercase text-foreground/30 tracking-wider">
+            {type.replace('_', ' ')}
+          </p>
+          <p className="text-[10px] font-mono text-foreground/40">{date}</p>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-bold text-foreground">
+            {isBS ? `${data.glucose_value} mg/dL` : isBP ? `${data.systolic}/${data.diastolic} mmHg` : `${data.weight_kg} kg`}
+          </span>
+          <span className={`text-[10px] font-bold uppercase ${
+            isBS ? (data.indicator === 'high' ? 'text-rose-500' : data.indicator === 'low' ? 'text-amber-500' : 'text-emerald-500') :
+            isBP ? (data.classification.includes('stage') || data.classification === 'crisis' ? 'text-rose-500' : 'text-emerald-500') :
+            (data.bmi_classification === 'normal' ? 'text-emerald-500' : 'text-amber-500')
+          }`}>
+            {isBS ? data.indicator : isBP ? data.classification : data.bmi_classification}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Documents() {
   const [activeTab, setActiveTab] = useState<Tab>("add");
   const [inputMethod, setInputMethod] = useState<InputMethod>("file");
   const [records, setRecords] = useState<HealthRecord[]>([]);
+  const [manualMode, setManualMode] = useState<ManualMode>("lab");
+  const [vitals, setVitals] = useState<{ bs: any[], bp: any[], weight: any[] }>({ bs: [], bp: [], weight: [] });
+  const [loading, setLoading] = useState(true);
 
   const [formValues, setFormValues] = useState({ ...EMPTY_RECORD });
   const [dynamicParams, setDynamicParams] = useState<DynamicParam[]>([]);
@@ -386,16 +459,28 @@ export default function Documents() {
     setTimeout(() => setToast(null), 2800);
   }, []);
 
-  useEffect(() => {
-    const fetchDocs = async () => {
-      try {
+  const fetchVitals = useCallback(async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    try {
+      const [bs, bp, w] = await Promise.all([
+        getBloodSugarLogs(token),
+        getBloodPressureLogs(token),
+        getWeightLogs(token)
+      ]);
+      setVitals({ bs, bp, weight: w });
+    } catch (error) {
+      console.error("Failed to fetch vitals:", error);
+    }
+  }, []);
+
+  const fetchRecords = useCallback(async () => {
+    try {
         const token = localStorage.getItem("access_token");
         if (!token) return;
 
         const resp = await getDocuments(token);
 
-        // Debug: open browser DevTools → Console to inspect the raw API response.
-        // This makes it immediately obvious if the shape is wrong.
         console.log("[documents] raw API response:", JSON.stringify(resp, null, 2));
 
         if (resp.rag_error) {
@@ -405,18 +490,23 @@ export default function Documents() {
         const dataList: any[] = resp.results || resp.documents || [];
         console.log("[documents] row count:", dataList.length);
 
-        // The pipeline normalises every row to { report_date, lab_name, metrics:{} }
-        // before returning, so we read only from that canonical shape here.
         const fetchedRecords: HealthRecord[] = dataList.map((d: any) => {
           const sd: any = d.structured_data || {};
-          const metrics: any = sd.metrics || {};
+          
+          const metrics: any = sd.metrics || sd.parameters || d.metrics || d.parameters || {};
 
           console.log("[documents] row", d.document_id, "→ sd:", JSON.stringify(sd));
 
           const getMetricVal = (key: string): string => {
-            const v = metrics[key];
+            let v = metrics[key];
+            
+            if ((v === undefined || v === null) && sd.parameters) {
+                const paramKey = Object.keys(sd.parameters).find(k => k.toLowerCase().replace(/[^a-z0-9]/g, "_").includes(key));
+                if (paramKey) v = sd.parameters[paramKey];
+            }
+
             if (v === undefined || v === null) return "";
-            if (typeof v === "object" && "value" in v) return String(v.value);
+            if (typeof v === "object" && v !== null && "value" in v) return String(v.value);
             return String(v);
           };
 
@@ -450,8 +540,11 @@ export default function Documents() {
 
             additionalMetrics: (() => {
               const additional: Record<string, string> = {};
-              const rawAdditional = metrics.additional_metrics || {};
+              const rawAdditional = metrics.additional_metrics || sd.parameters || {};
               Object.entries(rawAdditional).forEach(([k, v]: [string, any]) => {
+                const standardKeys = ["glucose_fasting", "glucose_postmeal", "hba1c", "chol_total", "chol_ldl", "chol_hdl", "triglycerides", "hemoglobin", "hematocrit", "wbc", "platelets", "uric_acid", "creatinine", "bun", "notes"];
+                if (standardKeys.includes(k.toLowerCase().replace(/ /g, "_"))) return;
+
                 additional[k] = typeof v === "object" && v !== null && "value" in v
                   ? String(v.value)
                   : String(v ?? "");
@@ -466,9 +559,12 @@ export default function Documents() {
       } catch (error) {
         console.error("[documents] fetch failed:", error);
       }
-    };
-    fetchDocs();
-  }, []);
+    }, [getDocuments]);
+
+  useEffect(() => {
+    fetchRecords();
+    fetchVitals();
+  }, [fetchRecords, fetchVitals]);
 
   const runOCR = useCallback(async (file: File) => {
     setOcrState("processing");
@@ -584,7 +680,7 @@ export default function Documents() {
         await createManualDocument(token, apiPayload as any);
       } else {
         if (!currentDocumentId) throw new Error("Missing document id");
-        await confirmDocument(token, currentDocumentId, apiPayload as any);
+        await confirmDocument(token, currentDocumentId, apiPayload);
       }
     } catch (error) {
       console.error(error);
@@ -849,32 +945,45 @@ export default function Documents() {
             )}
 
             {(inputMethod === "manual" || selectedFile) && (
-              <div style={{ animation: "fadeUp 0.2s ease-out" }}>
-                <HealthForm
-                  values={formValues}
-                  autofilled={autofilled}
-                  dynamicParams={dynamicParams}
-                  showEmptyFields={inputMethod === "manual"}
-                  onChange={handleFormChange}
-                  onDynamicChange={handleDynamicChange}
-                />
+              <div style={{ animation: "fadeUp 0.2s ease-out" }} className="flex flex-col gap-6">
+                {inputMethod === "manual" && !selectedFile && (
+                  <ManualModeSelector active={manualMode} onChange={setManualMode} />
+                )}
 
-                <div className="mt-8 flex -space-x-2.75 items-center">
-                  <div className="flex flex-col w-full squircle bg-foreground/5 px-5 py-3">
-                    <p className="text-[11px] font-mono text-foreground/40">
-                      Review all fields before saving · Date &amp; Patient Name are required
-                    </p>
-                  </div>
-                  <span className="w-7 h-7 rotate-135 bg-foreground/5 scoop-70-30 -z-1" />
-                  <Button
-                    bgClass="bg-richcerulean text-background"
-                    hoverClass="hover:bg-foreground hover:text-background"
-                    onClick={handleSubmit}
-                    title="New record"
-                  >
-                    <FilePlus2 size={20} />
-                  </Button>
-                </div>
+                {(manualMode === "lab" || selectedFile) ? (
+                  <>
+                    <HealthForm
+                      values={formValues}
+                      autofilled={autofilled}
+                      dynamicParams={dynamicParams}
+                      showEmptyFields={inputMethod === "manual"}
+                      onChange={handleFormChange}
+                      onDynamicChange={handleDynamicChange}
+                    />
+
+                    <div className="mt-4 flex -space-x-2.75 items-center">
+                      <div className="flex flex-col w-full squircle bg-foreground/5 px-5 py-3">
+                        <p className="text-[11px] font-mono text-foreground/40">
+                          Review all fields before saving · Date &amp; Patient Name are required
+                        </p>
+                      </div>
+                      <span className="w-7 h-7 rotate-135 bg-foreground/5 scoop-70-30 -z-1" />
+                      <Button
+                        bgClass="bg-richcerulean text-background"
+                        hoverClass="hover:bg-foreground hover:text-background"
+                        onClick={handleSubmit}
+                        title="New record"
+                      >
+                        <FilePlus2 size={20} />
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <ManualTracker onSave={() => {
+                    setToast({ msg: "Health log saved successfully!", warn: false });
+                    setTimeout(() => setToast(null), 3000);
+                  }} />
+                )}
               </div>
             )}
 
@@ -888,7 +997,7 @@ export default function Documents() {
 
         {activeTab === "records" && (
           <div style={{ animation: "fadeUp 0.25s ease-out" }}>
-            {records.length === 0 ? (
+            {records.length === 0 && vitals.bs.length === 0 && vitals.bp.length === 0 && vitals.weight.length === 0 ? (
               <div className="squircle bg-background p-16 flex flex-col items-center gap-4 text-center">
                 <ClipboardList size={40} className="text-foreground/20" />
                 <div>
@@ -916,6 +1025,17 @@ export default function Documents() {
                     onDelete={(id, name) => setModal({ type: "delete", id, name })}
                   />
                 ))}
+
+                {(vitals.bs.length > 0 || vitals.bp.length > 0 || vitals.weight.length > 0) && (
+                  <div className="mt-8 flex flex-col gap-4">
+                    <SectionLabel>Health Vitals History</SectionLabel>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {vitals.bp.slice(0, 4).map(v => <VitalsCard key={v.id} type="blood_pressure" data={v} />)}
+                      {vitals.bs.slice(0, 4).map(v => <VitalsCard key={v.id} type="blood_sugar" data={v} />)}
+                      {vitals.weight.slice(0, 4).map(v => <VitalsCard key={v.id} type="weight" data={v} />)}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -952,7 +1072,7 @@ export default function Documents() {
                 values={editValues}
                 autofilled={new Set()}
                 dynamicParams={dynamicParams}
-                showEmptyFields={true}
+                showEmptyFields={false}
                 onDynamicChange={(index, val) => {
                   const newParams = [...dynamicParams];
                   newParams[index].value = val;

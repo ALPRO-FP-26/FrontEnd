@@ -294,3 +294,50 @@ export async function updateDocument(
   });
 }
 
+// Health Logs (Manual Tracking)
+
+export function createBloodSugarLog(token: string, payload: any) {
+  return request<any>("/health-logs/blood-sugar", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getBloodSugarLogs(token: string) {
+  return request<any[]>("/health-logs/blood-sugar", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createBloodPressureLog(token: string, payload: any) {
+  return request<any>("/health-logs/blood-pressure", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getBloodPressureLogs(token: string) {
+  return request<any[]>("/health-logs/blood-pressure", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createWeightLog(token: string, payload: any) {
+  return request<any>("/health-logs/weight", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getWeightLogs(token: string) {
+  return request<any[]>("/health-logs/weight", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
