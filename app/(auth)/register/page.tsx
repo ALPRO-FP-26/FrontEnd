@@ -66,7 +66,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [age, setAge] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [sex, setSex] = useState("");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
@@ -84,8 +84,8 @@ export default function RegisterPage() {
     return value.trim() === "" || Number.isNaN(parsed) ? null : parsed;
   };
 
-  const healthProfile: HealthProfile = {
-    age: parseNumber(age),
+  const healthProfile: Partial<HealthProfile> = {
+    date_of_birth: dateOfBirth,
     biological_sex: sex,
     height_cm: parseNumber(height),
     weight_kg: parseNumber(weight),
@@ -106,9 +106,8 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     try {
-      await register(name, email, password);
+      await register(name, email, password, healthProfile);
       const tokens = await login(email, password);
-      await updateHealthProfile(tokens.access_token, healthProfile);
       saveAuth(tokens);
       router.push("/dashboard");
     } catch (err) {
@@ -181,7 +180,17 @@ export default function RegisterPage() {
             ) : (
               <div className="flex flex-col gap-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <FieldInput label="Age" type="number" placeholder="35" icon={User} value={age} onChange={setAge} />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-mono font-semibold text-foreground/50 uppercase tracking-widest">
+                      Date of Birth
+                    </label>
+                    <input 
+                      type="date" 
+                      value={dateOfBirth} 
+                      onChange={(e) => setDateOfBirth(e.target.value)} 
+                      className="w-full bg-transparent squircle border border-foreground/15 px-4 py-3 text-sm outline-none focus:border-richcerulean"
+                    />
+                  </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-mono font-semibold text-foreground/50 uppercase tracking-widest">
                       Biological Sex

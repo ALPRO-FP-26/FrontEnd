@@ -6,9 +6,10 @@ import {
   ArrowLeft, User, ActivitySquare, Save, CheckCircle, Scale, Droplet, Pill
 } from "lucide-react";
 import { getHealthProfile, updateHealthProfile, type HealthProfile } from "@/lib/api";
+import { formatDateToYYYYMMDD } from "@/lib/healthRecord";
 
 export default function Profile() {
-  const [age, setAge] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [sex, setSex] = useState("");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
@@ -29,7 +30,7 @@ export default function Profile() {
   };
 
   const applyProfile = (profile: HealthProfile) => {
-    setAge(profile.age == null ? "" : String(profile.age));
+    setDateOfBirth(profile.date_of_birth ? formatDateToYYYYMMDD(profile.date_of_birth) : "");
     setSex(profile.biological_sex ?? "");
     setHeight(profile.height_cm == null ? "" : String(profile.height_cm));
     setWeight(profile.weight_kg == null ? "" : String(profile.weight_kg));
@@ -40,7 +41,7 @@ export default function Profile() {
   };
 
   const buildProfilePayload = (): HealthProfile => ({
-    age: parseNumber(age),
+    date_of_birth: dateOfBirth,
     biological_sex: sex,
     height_cm: parseNumber(height),
     weight_kg: parseNumber(weight),
@@ -134,12 +135,12 @@ export default function Profile() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className={labelClass}>Age</label>
+              <label className={labelClass}>Date of Birth</label>
               <input 
-                type="number" 
-                value={age} 
-                onChange={e => setAge(e.target.value)} 
-                placeholder="e.g. 35" 
+                type="date" 
+                value={dateOfBirth} 
+                onChange={e => setDateOfBirth(e.target.value)} 
+                 
                 className={inputClass} 
               />
             </div>

@@ -14,6 +14,7 @@ import {
   confirmDocument,
   createManualDocument,
   deleteDocument as apiDeleteDocument,
+  updateDocument,
 } from "@/lib/api";
 
 type Tab = "add" | "records";
@@ -54,25 +55,23 @@ function mapPreviewToForm(preview: any): { mapped: Partial<typeof EMPTY_RECORD> 
   };
 
   const mapped: Partial<typeof EMPTY_RECORD> = {
-    reportDate:      formatDateToYYYYMMDD(preview.date) ?? "",
-    lab:             preview.lab_name     ?? "",
-    patientName:     preview.patient_name ?? "",
-    dob:             formatDateToYYYYMMDD(preview.dob) ?? "",
-    glucoseFasting:  findAndConsume("glucose fasting", "fasting glucose", "gula puasa"),
+    reportDate: formatDateToYYYYMMDD(preview.date) ?? "",
+    lab: preview.lab_name ?? "",
+    glucoseFasting: findAndConsume("glucose fasting", "fasting glucose", "gula puasa"),
     glucosePostmeal: findAndConsume("postmeal", "post-meal", "post meal", "2 hour glucose", "2h glucose"),
-    hba1c:           findAndConsume("hba1c", "hba 1c", "hemoglobin a1c"),
-    cholTotal:       findAndConsume("total cholesterol", "cholesterol total"),
-    cholLDL:         findAndConsume("ldl"),
-    cholHDL:         findAndConsume("hdl"),
-    triglycerides:   findAndConsume("triglyceride"),
-    hemoglobin:      findAndConsume("hemoglobin", " hb "),
-    hematocrit:      findAndConsume("hematocrit", " ht "),
-    wbc:             findAndConsume("white blood", "leukosit", "wbc"),
-    platelets:       findAndConsume("platelet", "trombosit"),
-    uricAcid:        findAndConsume("uric acid", "asam urat"),
-    creatinine:      findAndConsume("creatinine", "kreatinin"),
-    bun:             findAndConsume("blood urea nitrogen", " bun", "urea nitrogen"),
-    notes:           (preview.warnings as string[] | undefined ?? []).join(", "),
+    hba1c: findAndConsume("hba1c", "hba 1c", "hemoglobin a1c"),
+    cholTotal: findAndConsume("total cholesterol", "cholesterol total"),
+    cholLDL: findAndConsume("ldl"),
+    cholHDL: findAndConsume("hdl"),
+    triglycerides: findAndConsume("triglyceride"),
+    hemoglobin: findAndConsume("hemoglobin", " hb "),
+    hematocrit: findAndConsume("hematocrit", " ht "),
+    wbc: findAndConsume("white blood", "leukosit", "wbc"),
+    platelets: findAndConsume("platelet", "trombosit"),
+    uricAcid: findAndConsume("uric acid", "asam urat"),
+    creatinine: findAndConsume("creatinine", "kreatinin"),
+    bun: findAndConsume("blood urea nitrogen", " bun", "urea nitrogen"),
+    notes: (preview.warnings as string[] | undefined ?? []).join(", "),
   };
 
   const dynamicFields: DynamicParam[] = [];
@@ -168,7 +167,7 @@ function HealthForm({
 
   STANDARD_FIELDS.forEach(field => {
     const val = values[field.key as keyof typeof EMPTY_RECORD] as string;
-    if (!showEmptyFields && !val) return; 
+    if (!showEmptyFields && !val) return;
 
     groupedFields[field.cat].push({
       isStandard: true,
@@ -181,7 +180,7 @@ function HealthForm({
   });
 
   dynamicParams.forEach((param, index) => {
-    if (!showEmptyFields && !param.value) return; 
+    if (!showEmptyFields && !param.value) return;
 
     const cat = getCategoryForLabel(param.label);
     if (groupedFields[cat]) {
@@ -201,8 +200,6 @@ function HealthForm({
       <div className="grid grid-cols-2 gap-3">
         <FieldInput label="Report Date" type="date" value={values.reportDate} autofilled={af("reportDate")} onChange={v => onChange("reportDate", v)} />
         <FieldInput label="Lab / Source" placeholder="e.g. Prodia" value={values.lab} autofilled={af("lab")} onChange={v => onChange("lab", v)} />
-        <FieldInput label="Patient Name" value={values.patientName} autofilled={af("patientName")} onChange={v => onChange("patientName", v)} />
-        <FieldInput label="Date of Birth" type="date" value={values.dob} autofilled={af("dob")} onChange={v => onChange("dob", v)} />
       </div>
 
       {Object.entries(groupedFields).map(([catName, fields]) => {
@@ -266,7 +263,7 @@ function RecordCard({
   });
 
   const dynamicChips = Object.entries(record.additionalMetrics || {}).map(([label, val]) => {
-    return { label, val: String(val), unit: "", st: "ok" }; 
+    return { label, val: String(val), unit: "", st: "ok" };
   });
 
   const chips = [...standardChips, ...dynamicChips];
@@ -283,7 +280,7 @@ function RecordCard({
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-sm text-foreground truncate">
-              {record.patientName || "Unknown Patient"}
+              {"Lab Result"}
             </p>
             <p className="text-[11px] font-mono text-foreground/50 mt-0.5">
               {record.reportDate} · {record.lab || "No source"}
@@ -316,7 +313,7 @@ function RecordCard({
             <Pencil size={13} />
           </button>
           <button
-            onClick={() => onDelete(record.id, record.patientName)}
+            onClick={() => onDelete(record.id, "Record")}
             className="w-8 h-8 rounded-full border border-foreground/15 flex items-center justify-center text-foreground/40 hover:border-red-400 hover:text-red-500 transition-all duration-150"
             title="Delete"
           >
@@ -354,7 +351,7 @@ function RecordCard({
             </div>
           )}
           <p className="text-[10px] font-mono text-foreground/30">
-            DOB: {record.dob} · Added {record.createdAt.toLocaleDateString()}
+            Added {record.createdAt.toLocaleDateString()}
           </p>
         </div>
       )}
@@ -394,57 +391,80 @@ export default function Documents() {
       try {
         const token = localStorage.getItem("access_token");
         if (!token) return;
-        
+
         const resp = await getDocuments(token);
-        
-        if (resp && resp.documents) {
-          const fetchedRecords = resp.documents.map((d: any) => {
-            let meta: any = {};
-            if (d.sample_meta) {
-              try {
-                meta = typeof d.sample_meta === "string" ? JSON.parse(d.sample_meta) : d.sample_meta;
-              } catch (e) { console.error("Gagal parse sample_meta", e); }
-            }
 
-            const source = { ...d, ...meta, ...(d.metrics || {}) };
+        // Debug: open browser DevTools → Console to inspect the raw API response.
+        // This makes it immediately obvious if the shape is wrong.
+        console.log("[documents] raw API response:", JSON.stringify(resp, null, 2));
 
-            return {
-              id: d.document_id || d.id || Date.now().toString(),
-              createdAt: new Date(d.uploaded_at || d.created_at || new Date()),
-
-              reportDate: source.date || source.report_date || source.reportDate || "",
-              lab: source.lab_name || source.lab || "",
-              patientName: source.patient_name || source.patientName || "",
-              dob: source.dob || "",
-
-              glucoseFasting: source.glucose_fasting || source.glucoseFasting || "",
-              glucosePostmeal: source.glucose_postmeal || source.glucosePostmeal || "",
-              hba1c: source.hba1c || "",
-
-              cholTotal: source.chol_total || source.cholTotal || "",
-              cholLDL: source.chol_ldl || source.cholLDL || "",
-              cholHDL: source.chol_hdl || source.cholHDL || "",
-              triglycerides: source.triglycerides || "",
-
-              hemoglobin: source.hemoglobin || source.hb || "",
-              hematocrit: source.hematocrit || source.ht || "",
-              wbc: source.wbc || source.leukosit || "",
-              platelets: source.platelets || source.trombosit || "",
-
-              uricAcid: source.uric_acid || source.uricAcid || "",
-              creatinine: source.creatinine || "",
-              bun: source.bun || "",
-
-              notes: source.notes || "",
-              
-              additionalMetrics: d.additional_metrics || source.additional_metrics || source.additionalMetrics || {},
-            };
-          });
-
-          setRecords(fetchedRecords);
+        if (resp.rag_error) {
+          console.warn("[documents] RAG service error:", resp.rag_error);
         }
+
+        const dataList: any[] = resp.results || resp.documents || [];
+        console.log("[documents] row count:", dataList.length);
+
+        // The pipeline normalises every row to { report_date, lab_name, metrics:{} }
+        // before returning, so we read only from that canonical shape here.
+        const fetchedRecords: HealthRecord[] = dataList.map((d: any) => {
+          const sd: any = d.structured_data || {};
+          const metrics: any = sd.metrics || {};
+
+          console.log("[documents] row", d.document_id, "→ sd:", JSON.stringify(sd));
+
+          const getMetricVal = (key: string): string => {
+            const v = metrics[key];
+            if (v === undefined || v === null) return "";
+            if (typeof v === "object" && "value" in v) return String(v.value);
+            return String(v);
+          };
+
+          return {
+            id: d.document_id || d.id || String(Math.random()),
+            createdAt: new Date(d.confirmed_at || d.uploaded_at || d.created_at || new Date()),
+
+            // report_date is the canonical key; fall back to legacy "date" just in case
+            reportDate: sd.report_date || sd.date || d.report_date || d.date || "",
+            lab:        sd.lab_name   || sd.lab   || d.lab_name   || d.lab   || "",
+
+            glucoseFasting:  getMetricVal("glucose_fasting"),
+            glucosePostmeal: getMetricVal("glucose_postmeal"),
+            hba1c:           getMetricVal("hba1c"),
+
+            cholTotal:       getMetricVal("chol_total"),
+            cholLDL:         getMetricVal("chol_ldl"),
+            cholHDL:         getMetricVal("chol_hdl"),
+            triglycerides:   getMetricVal("triglycerides"),
+
+            hemoglobin:      getMetricVal("hemoglobin"),
+            hematocrit:      getMetricVal("hematocrit"),
+            wbc:             getMetricVal("wbc"),
+            platelets:       getMetricVal("platelets"),
+
+            uricAcid:        getMetricVal("uric_acid"),
+            creatinine:      getMetricVal("creatinine"),
+            bun:             getMetricVal("bun"),
+
+            notes: getMetricVal("notes") || sd.notes || d.notes || "",
+
+            additionalMetrics: (() => {
+              const additional: Record<string, string> = {};
+              const rawAdditional = metrics.additional_metrics || {};
+              Object.entries(rawAdditional).forEach(([k, v]: [string, any]) => {
+                additional[k] = typeof v === "object" && v !== null && "value" in v
+                  ? String(v.value)
+                  : String(v ?? "");
+              });
+              return additional;
+            })(),
+          };
+        });
+
+        console.log("[documents] mapped:", fetchedRecords.map(r => ({ id: r.id, reportDate: r.reportDate, lab: r.lab })));
+        setRecords(fetchedRecords);
       } catch (error) {
-        console.error("Failed to fetch documents:", error);
+        console.error("[documents] fetch failed:", error);
       }
     };
     fetchDocs();
@@ -516,8 +536,8 @@ export default function Documents() {
   };
 
   const handleSubmit = async () => {
-    if (!formValues.reportDate || !formValues.patientName) {
-      showToast("Please fill in at least Date and Patient Name", true);
+    if (!formValues.reportDate) {
+      showToast("Please fill in the Report Date", true);
       return;
     }
 
@@ -525,20 +545,22 @@ export default function Documents() {
       const token = localStorage.getItem("access_token");
       if (!token) throw new Error("Not authenticated");
 
+      if (!formValues.reportDate || !formValues.lab) {
+        showToast("Please provide report date and lab name", true);
+        return;
+      }
+
+      const formattedDate = formatDateToYYYYMMDD(formValues.reportDate);
+
       const dynamicMetrics = dynamicParams.reduce(
-        (acc, curr) => ({ ...acc, [curr.label]: curr.value }), 
+        (acc, curr) => ({ ...acc, [curr.label]: curr.value }),
         {}
       );
 
       const apiPayload = {
-        patient_name: formValues.patientName,
-        report_date: formValues.reportDate,
+        report_date: formattedDate,
         lab_name: formValues.lab,
         metrics: {
-          report_date: formValues.reportDate,
-          lab: formValues.lab,
-          patient_name: formValues.patientName,
-          dob: formValues.dob,
           glucose_fasting: formValues.glucoseFasting,
           glucose_postmeal: formValues.glucosePostmeal,
           hba1c: formValues.hba1c,
@@ -571,14 +593,14 @@ export default function Documents() {
     }
 
     // Jika berhasil save ke server, baru update UI lokal
-    const rec: HealthRecord = { 
-      id: currentDocumentId || Date.now().toString(), 
-      createdAt: new Date(), 
+    const rec: HealthRecord = {
+      id: currentDocumentId || Date.now().toString(),
+      createdAt: new Date(),
       ...formValues,
       additionalMetrics: dynamicParams.reduce((acc, curr) => ({ ...acc, [curr.label]: curr.value }), {})
     };
     setRecords(p => [rec, ...p]);
-    
+
     setFormValues({ ...EMPTY_RECORD });
     setDynamicParams([]);
     setAutofilled(new Set());
@@ -599,25 +621,63 @@ export default function Documents() {
         unit: ""
       })
     );
-    
+
     setDynamicParams(params);
     setModal({ type: "edit", record: r });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (modal.type !== "edit") return;
 
-    const updatedRecord: HealthRecord = {
-    ...modal.record,
-    ...editValues,
-    additionalMetrics: dynamicParams.reduce(
-      (acc, curr) => ({ ...acc, [curr.label]: curr.value }), 
-      {}
-    )
-  };
-    setRecords(p => p.map(r => r.id === modal.record.id ? updatedRecord : r));
-    setModal({ type: "none" });
-    showToast("Record updated");
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("Not authenticated");
+
+      const formattedDate = formatDateToYYYYMMDD(editValues.reportDate);
+      const dynamicMetrics = dynamicParams.reduce(
+        (acc, curr) => ({ ...acc, [curr.label]: curr.value }),
+        {}
+      );
+
+      const apiPayload = {
+        report_date: formattedDate,
+        lab_name: editValues.lab,
+        metrics: {
+          glucose_fasting: editValues.glucoseFasting,
+          glucose_postmeal: editValues.glucosePostmeal,
+          hba1c: editValues.hba1c,
+          chol_total: editValues.cholTotal,
+          chol_ldl: editValues.cholLDL,
+          chol_hdl: editValues.cholHDL,
+          triglycerides: editValues.triglycerides,
+          hemoglobin: editValues.hemoglobin,
+          hematocrit: editValues.hematocrit,
+          wbc: editValues.wbc,
+          platelets: editValues.platelets,
+          uric_acid: editValues.uricAcid,
+          creatinine: editValues.creatinine,
+          bun: editValues.bun,
+          notes: editValues.notes,
+          additional_metrics: dynamicMetrics
+        }
+      };
+
+      await updateDocument(token, modal.record.id, apiPayload);
+
+      const updatedRecord: HealthRecord = {
+        ...modal.record,
+        ...editValues,
+        additionalMetrics: dynamicMetrics
+      };
+
+      setRecords(p => p.map(r => r.id === modal.record.id ? updatedRecord : r));
+      setModal({ type: "none" });
+      setDynamicParams([]);
+      showToast("Record updated");
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to save changes", true);
+    }
   };
 
   const confirmDelete = async () => {
@@ -724,9 +784,9 @@ export default function Documents() {
                   <div className="squircle border border-foreground/15 bg-background p-4 flex items-center gap-3">
                     <div className="w-10 h-10 squircle bg-richcerulean/10 flex items-center justify-center shrink-0">
                       {selectedFile.type.startsWith("image/") ? (
-                         <ImageIcon size={18} className="text-richcerulean" />
+                        <ImageIcon size={18} className="text-richcerulean" />
                       ) : (
-                         <FileText size={18} className="text-richcerulean" />
+                        <FileText size={18} className="text-richcerulean" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -794,7 +854,7 @@ export default function Documents() {
                   values={formValues}
                   autofilled={autofilled}
                   dynamicParams={dynamicParams}
-                  showEmptyFields={inputMethod === "manual"} 
+                  showEmptyFields={inputMethod === "manual"}
                   onChange={handleFormChange}
                   onDynamicChange={handleDynamicChange}
                 />
@@ -866,7 +926,7 @@ export default function Documents() {
         <>
           <div
             className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm"
-            onClick={() => setModal({ type: "none" })}
+            onClick={() => { setModal({ type: "none" }); setDynamicParams([]); }}
           />
           <div
             className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-lg bg-background flex flex-col"
@@ -876,11 +936,11 @@ export default function Documents() {
               <div>
                 <h2 className="font-semibold text-foreground">Edit Record</h2>
                 <p className="text-[11px] font-mono text-foreground/40 mt-0.5">
-                  {modal.record.patientName} · {modal.record.reportDate}
+                  {modal.record.reportDate}
                 </p>
               </div>
               <button
-                onClick={() => setModal({ type: "none" })}
+                onClick={() => { setModal({ type: "none" }); setDynamicParams([]); }}
                 className="w-8 h-8 rounded-full border border-foreground/15 flex items-center justify-center text-foreground/40 hover:border-foreground/40 transition-all"
               >
                 <X size={14} />
@@ -892,7 +952,7 @@ export default function Documents() {
                 values={editValues}
                 autofilled={new Set()}
                 dynamicParams={dynamicParams}
-                showEmptyFields={false}
+                showEmptyFields={true}
                 onDynamicChange={(index, val) => {
                   const newParams = [...dynamicParams];
                   newParams[index].value = val;

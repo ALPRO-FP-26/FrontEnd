@@ -4,8 +4,6 @@ export type HealthRecord = {
   // patient
   reportDate: string;
   lab: string;
-  patientName: string;
-  dob: string;
   // blood sugar
   glucoseFasting: string;
   glucosePostmeal: string;
@@ -47,8 +45,6 @@ export function getStatus(
 export const EMPTY_RECORD: Omit<HealthRecord, "id" | "createdAt"> = {
   reportDate: "",
   lab: "",
-  patientName: "",
-  dob: "",
   glucoseFasting: "",
   glucosePostmeal: "",
   hba1c: "",
@@ -103,17 +99,27 @@ export const STANDARD_FIELDS: Array<{
 
 export function getCategoryForLabel(label: string): string {
   const lower = label.toLowerCase();
-  
-  if (/(glucose|sugar|hba1c|hba 1c|glycated)/.test(lower)) return "Blood Sugar";
-  if (/(cholesterol|chol|ldl|hdl|triglyceride|vldl|lipid)/.test(lower)) return "Cholesterol Panel";
-  if (/(hemoglobin|hematocrit|wbc|platelet|rbc|mcv|mch|mchc|rdw|mpv|lymphocyte|monocyte|eosinophil|basophil|neutrophil|esr|absolute|foetal|hb a|peak)/.test(lower)) return "Blood Count";
-  if (/(uric|creatinine|bun|urea|microalbumin|specific gravity|ph|urine)/.test(lower)) return "Kidney & Urine";
-  
-  if (/(sgot|sgpt|ast|alt|bilirubin|protein|albumin|globulin|a\/g ratio)/.test(lower)) return "Liver Function";
-  if (/(t3|t4|tsh|thyroid|thyroxine|triiodothyronine)/.test(lower)) return "Thyroid Profile";
-  if (/(calcium|chloride|potassium|sodium|iron|tibc|transferrin|magnesium|phosphorus)/.test(lower)) return "Electrolytes & Minerals";
-  if (/(hbsag|hiv|ige|psa|homocysteine|vitamin)/.test(lower)) return "Immunology & Markers";
-  
+  if (/\b(glucose|glukosa|sugar|gula|hba1c|a1c|glycated|glycosylated|fbg|fbs|rbs|rbg|gdp|gds|pp|insulin|c-peptide|homa-ir)\b/.test(lower)) {
+    return "Blood Sugar";
+  }
+  if (/\b(cholesterol|kolesterol|chol|ldl|ldl-c|hdl|hdl-c|triglyceride|trigliserida|tg|trig|vldl|lipid|apolipoprotein|apoa|apob)\b/.test(lower)) {
+    return "Cholesterol Panel";
+  }
+  if (/\b(hemoglobin|hgb|hb|hematocrit|hematokrit|hct|pcv|wbc|leukosit|leukocyte|white blood cell|sel darah putih|platelet|trombosit|plt|rbc|eritrosit|erythrocyte|red blood cell|sel darah merah|mcv|mch|mchc|rdw|rdw-cv|rdw-sd|mpv|pdw|p-lcr|lymphocyte|limfosit|monocyte|monosit|eosinophil|eosinofil|basophil|basofil|neutrophil|neutrofil|granulocyte|granulosit|ig|esr|led|sedimentation|bse)\b/.test(lower)) {
+    return "Blood Count";
+  }
+  if (/\b(uric acid|asam urat|ua|creatinine|kreatinin|cr|crea|bun|urea|ureum|blood urea nitrogen|egfr|gfr|cct|urine|urin|urinalysis|urinalisis|microalbumin|albuminuria|specific gravity|berat jenis|bj|ph|urobilinogen|keton|ketone|nitrit|nitrite|sedimen)\b/.test(lower)) {
+    return "Kidney & Urine";
+  }
+  if (/\b(sgot|ast|sgpt|alt|bilirubin|bili|protein|albumin|globulin|a\/g|alp|alkaline phosphatase|alkali fosfatase|ggt|gamma gt|hepar|hati)\b/.test(lower)) {
+    return "Liver Function";
+  }
+  if (/\b(calcium|kalsium|ca|chloride|klorida|cl|potassium|kalium|k|sodium|natrium|na|iron|zat besi|fe|tibc|transferrin|ferritin|magnesium|mg|phosphorus|fosfor|phosphate|fosfat|po4)\b/.test(lower)) {
+    return "Electrolytes & Minerals";
+  }
+  if (/\b(hbsag|anti-hbs|anti-hcv|hepatitis|hiv|ige|igg|igm|iga|psa|cea|ca-125|ca 15-3|ca 19-9|afp|homocysteine|vitamin|vit|crp|hs-crp|dengue|ns1|widal|salmonella|typhi|vdrl|tpha|antibody|antibodi|ana|serology|serologi)\b/.test(lower)) {
+    return "Immunology & Markers";
+  }  
   return "Other Tests";
 }
 

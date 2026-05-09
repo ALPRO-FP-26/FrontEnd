@@ -26,7 +26,7 @@ export type RegisterResponse = {
 export type HealthProfile = {
   id?: string;
   user_id?: string;
-  age: number | null;
+  date_of_birth: string;
   biological_sex: string;
   height_cm: number | null;
   weight_kg: number | null;
@@ -139,11 +139,19 @@ export function login(email: string, password: string) {
   });
 }
 
-export function register(name: string, email: string, password: string) {
+export function register(name: string, email: string, password: string, profile?: Partial<HealthProfile>) {
   const formData = new FormData();
   formData.append("name", name);
   formData.append("email", email);
   formData.append("password", password);
+  
+  if (profile) {
+    if (profile.date_of_birth) formData.append("date_of_birth", profile.date_of_birth);
+    if (profile.biological_sex) formData.append("biological_sex", profile.biological_sex);
+    if (profile.height_cm) formData.append("height_cm", String(profile.height_cm));
+    if (profile.weight_kg) formData.append("weight_kg", String(profile.weight_kg));
+    if (profile.blood_type) formData.append("blood_type", profile.blood_type);
+  }
 
   return request<RegisterResponse>("/auth/register", {
     method: "POST",
@@ -228,7 +236,7 @@ export function uploadDocument(accessToken: string, file: File, documentType: st
 }
 
 export function getDocuments(accessToken: string) {
-  return request<{ documents: HealthRecordResponse[] }>("/documents", {
+  return request<{ documents?: HealthRecordResponse[]; results?: any[]; rag_error?: string }>("/documents", {
     method: "GET",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -241,23 +249,13 @@ export async function confirmDocument(
   documentId: string,
   payload: any
 ) {
-  const res = await fetch(
-    `${API_BASE_URL}/documents/${documentId}/confirm`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error("Failed confirm document");
-  }
-
-  return res.json();
+  return request<any>(`/documents/${documentId}/confirm`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 export function deleteDocument(accessToken: string, documentId: string) {
@@ -273,22 +271,26 @@ export async function createManualDocument(
   token: string,
   payload: any
 ) {
-  const res = await fetch(
-    `${API_BASE_URL}/documents/manual`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    }
-  );
+  return request<any>("/documents/manual", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
 
-  if (!res.ok) {
-    throw new Error("Failed create document");
-  }
-
-  return res.json();
+export async function updateDocument(
+  token: string,
+  documentId: string,
+  payload: any
+) {
+  return request<any>(`/documents/${documentId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
