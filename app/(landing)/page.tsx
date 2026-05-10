@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Activity, FileText, Bot, ArrowRight, ChevronLeft, ChevronRight, HeartPulse, LineChart, AlertTriangle, Stethoscope } from "lucide-react";
+import { Activity, FileText, Bot, ArrowRight, ChevronLeft, ChevronRight, HeartPulse, LineChart, AlertTriangle, Stethoscope, BookOpen } from "lucide-react";
 import Button from "@/components/button";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 
@@ -14,7 +14,7 @@ const slides = [
   },
   {
     title: "Track Daily Vitals",
-    desc: "Manually log your daily vitals—blood pressure, blood sugar, weight, heart rate—and visualize 30-day trend lines to stay on track.",
+    desc: "Manually log your daily vitals including blood pressure, blood sugar, weight, and heart rate, then visualize 30 day trend lines to help you stay on track.",
     icon: LineChart
   },
   {
@@ -31,6 +31,11 @@ const slides = [
     title: "Emergency Guidance",
     desc: "If critical keywords like 'chest pain' are detected, the AI is bypassed to immediately show you emergency contact numbers.",
     icon: AlertTriangle
+  },
+  {
+    title: "Health Library",
+    desc: "Explore a curated library of medical articles and health insights to better understand your conditions and stay informed about wellness.",
+    icon: BookOpen
   }
 ];
 
@@ -106,14 +111,14 @@ export default function Home() {
                 <Activity size={14} /> Our Mission
               </div>
               <h2 className="text-3xl font-bold text-foreground leading-tight">
-                Why we built MediSync
+                Why We Built MediSync?
               </h2>
-              <div className="space-y-4 text-foreground/60 leading-relaxed text-sm">
+              <div className="space-y-4 text-foreground/60 leading-relaxed text-sm text-justify">
                 <p>
-                  Every day, patients managing chronic conditions like hypertension or diabetes need to meticulously log their blood sugar or blood pressure—sometimes up to three times a day. To prevent these crucial records from getting lost and to visualize health trends over time, we created MediSync.
+                  Every day, patients managing chronic conditions such as hypertension or diabetes often need to record their blood pressure or blood sugar levels several times a day. Without a proper system, these important records can easily become scattered or forgotten, making it difficult to monitor long term health patterns. MediSync was created to help users store, organize, and visualize their health data in one place so they can better track their condition over time.
                 </p>
                 <p>
-                  The healthcare system generates enormous amounts of personal health data, but almost none of it is accessible in plain language. People rely entirely on their doctor to interpret results, often going months without understanding their own health status. MediSync bridges this gap by acting as your personal <strong>&quot;health translator&quot;</strong>—turning lab PDFs and daily vitals into a structured, searchable, and conversational health history.
+                  Modern healthcare produces a large amount of personal health information, yet most patients still struggle to understand it without medical guidance. Lab results and medical documents are usually filled with technical terms that are difficult for non medical users to interpret. MediSync helps solve this problem by converting lab PDFs and daily health records into structured, searchable information that is easier to understand. Instead of simply storing data, the platform allows users to explore and interact with their health history in a more accessible and conversational way.
                 </p>
               </div>
             </div>
@@ -141,7 +146,7 @@ export default function Home() {
 
         <section className="flex flex-col gap-6" style={{ animation: "fadeUp 0.7s ease-out" }}>
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-foreground">What You Can Do</h2>
+            <h2 className="text-2xl font-bold text-foreground">What You Can Do?</h2>
             <div className="h-px flex-1 bg-foreground/10" />
           </div>
 

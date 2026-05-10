@@ -55,12 +55,10 @@ export default function Dashboard() {
   const latestGlucose = vitals.bs[0] ? vitals.bs[0].glucose_value : "--";
   const latestWeight = vitals.weight[0] ? vitals.weight[0].weight_kg : "--.-";
 
-  // Build mini sparkline data per metric
   const glucoseTrend = [...vitals.bs].reverse().slice(-7).map(v => v.glucose_value);
   const bpTrend = [...vitals.bp].reverse().slice(-7).map(v => v.systolic);
   const weightTrend = [...vitals.weight].reverse().slice(-7).map(v => v.weight_kg);
 
-  // Mini sparkline SVG component
   const Sparkline = ({
     data,
     color,
@@ -162,12 +160,10 @@ export default function Dashboard() {
 
           <div className="flex md:flex-row flex-col gap-4">
 
-            {/* Tracking Data Grid — 1:1 on desktop, full width on mobile */}
             <div className="flex flex-col gap-4">
               <h2 className="text-sm font-mono font-bold text-foreground/40 uppercase tracking-[0.2em] ml-2">Body Conditions</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                {/* Blood Pressure */}
                 <div className="w-full sm:aspect-square squircle bg-background p-6 border border-foreground/10 shadow-sm flex flex-col gap-3 hover:border-red-500/30 transition-all group">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 squircle bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
@@ -182,14 +178,12 @@ export default function Dashboard() {
                       <span className="text-[11px] font-mono text-foreground/40 mb-1.5 font-bold uppercase">mmHg</span>
                     </div>
                   </div>
-                  {/* Mini sparkline */}
                   <div className="mt-auto h-10 w-full opacity-70 group-hover:opacity-100 transition-opacity">
                     <Sparkline data={bpTrend} color="#ef4444" thresholdHigh={130} />
                   </div>
                   <p className="text-[9px] font-mono text-foreground/30 uppercase tracking-widest">Last 7 readings</p>
                 </div>
 
-                {/* Glucose */}
                 <div className="w-full sm:aspect-square squircle bg-background p-6 border border-foreground/10 shadow-sm flex flex-col gap-3 hover:border-richcerulean/30 transition-all group">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 squircle bg-richcerulean/10 flex items-center justify-center group-hover:bg-richcerulean/20 transition-colors">
@@ -210,7 +204,6 @@ export default function Dashboard() {
                   <p className="text-[9px] font-mono text-foreground/30 uppercase tracking-widest">Last 7 readings</p>
                 </div>
 
-                {/* Weight */}
                 <div className="w-full sm:aspect-square squircle bg-background p-6 border border-foreground/10 shadow-sm flex flex-col gap-3 hover:border-amber-500/30 transition-all group">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 squircle bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
@@ -231,7 +224,6 @@ export default function Dashboard() {
                   <p className="text-[9px] font-mono text-foreground/30 uppercase tracking-widest">Last 7 readings</p>
                 </div>
 
-                {/* Lab Records */}
                 <div className="w-full sm:aspect-square squircle bg-background p-6 border border-foreground/10 shadow-sm flex flex-col gap-3 hover:border-green-500/30 transition-all group">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 squircle bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
@@ -246,7 +238,6 @@ export default function Dashboard() {
                       <span className="text-[11px] font-mono text-foreground/40 mb-1.5 font-bold uppercase">Documents</span>
                     </div>
                   </div>
-                  {/* Static bar fill to indicate storage used — decorative */}
                   <div className="mt-auto flex flex-col gap-1.5">
                     <div className="h-2 w-full bg-foreground/5 rounded-full overflow-hidden">
                       <div
@@ -272,7 +263,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Quick Actions */}
             <div className="flex flex-col gap-4">
               <h2 className="text-sm font-mono font-bold text-foreground/40 uppercase tracking-[0.2em] ml-2">Quick Actions</h2>
               <div className="flex flex-col squircle bg-background border border-foreground/10 shadow-sm overflow-hidden divide-y divide-foreground/10">
@@ -314,7 +304,6 @@ export default function Dashboard() {
             </div>
           </div>
         
-          {/* Articles */}
           <div className="flex flex-col gap-4">
             <h2 className="text-sm font-mono font-bold text-foreground/40 uppercase tracking-[0.2em] ml-2">Health Library</h2>
             
@@ -337,7 +326,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Browse More Button dipisah dari flex row scroll */}
             <Link href="/article" className="p-4 squircle bg-richcerulean/5 border border-richcerulean/20 flex items-center justify-between group cursor-pointer hover:bg-richcerulean/10 transition-colors">
               <span className="text-[10px] font-bold text-richcerulean uppercase tracking-widest">Browse all articles</span>
               <ChevronRight size={14} className="text-richcerulean/60 group-hover:translate-x-1 transition-transform" />

@@ -150,7 +150,7 @@ export default function Profile() {
           </div>
           <div>
             <h1 className="font-bold text-xl tracking-tight text-foreground">Your Profile</h1>
-            <p className="text-[10px] font-mono text-foreground/50 uppercase tracking-widest">Manage your health context</p>
+            <p className="text-[12px] font-mono text-foreground/50">Manage your health context</p>
           </div>
         </div>
       </header>

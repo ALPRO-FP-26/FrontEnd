@@ -51,7 +51,7 @@ export default function ArticlesPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold text-foreground leading-none">Health Library</h1>
-              <p className="text-[10px] font-mono text-foreground/50 uppercase tracking-widest mt-1">
+              <p className="text-[12px] font-mono text-foreground/50 mt-1">
                 Explore medical insights
               </p>
             </div>
@@ -110,7 +110,7 @@ export default function ArticlesPage() {
                       <BookOpen size={48} />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-foreground  pointer-events-none" />
+
                 </div>
                 
                 <div className="p-6 flex flex-col flex-1">

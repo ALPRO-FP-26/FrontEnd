@@ -800,7 +800,7 @@ export default function Documents() {
       <header className="w-[70%] mt-5 z-10 flex -space-x-2.75 items-center">
         <div className="flex flex-col w-full px-6 py-4 squircle bg-background">
           <h1 className="text-xl font-semibold text-foreground">Health Documents</h1>
-          <p className="text-[12px] font-mono text-foreground/50">manage your health report data</p>
+          <p className="text-[12px] font-mono text-foreground/50">Manage your health report data</p>
         </div>
       </header>
 

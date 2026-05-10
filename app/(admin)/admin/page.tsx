@@ -319,7 +319,7 @@ export default function AdminArticles() {
                             </div>
 
                             <div className="flex flex-col gap-2 flex-1">
-                                <label className="text-[10px] font-mono font-bold text-foreground/40 uppercase tracking-widest ml-1">Content (Markdown supported)</label>
+                                <label className="text-[10px] font-mono font-bold text-foreground/40 uppercase tracking-widest ml-1">Article Content</label>
                                 <textarea
                                     required
                                     value={formValues.content}

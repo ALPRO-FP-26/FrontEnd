@@ -20,7 +20,7 @@ const SUGGESTIONS = [
   "What does my HbA1c mean?",
 ];
 
-const GREETING = "Hello! I'm Aether, your AI health assistant. Ask me anything about your health records or lab results!";
+const GREETING = "Hello! I'm Mia, your AI health assistant. Ask me anything about your health records or lab results!";
 
 export default function Chatbot() {
   const nextMessageId = useRef(1);
@@ -223,7 +223,6 @@ export default function Chatbot() {
   return (
     <div className="flex h-screen bg-gray-300 text-foreground overflow-hidden">
 
-      {/* Subtle grid overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-0"
         style={{
@@ -233,9 +232,7 @@ export default function Chatbot() {
         }}
       />
 
-      {/* ── Main content ── */}
       <div className="flex-1 flex flex-col items-center min-w-0 relative z-10">
-        {/* ── Header ── */}
         <header className="w-[70%] mt-5 z-10 flex -space-x-2.75 items-center">
           <Button
             onClick={resetChat}
@@ -249,22 +246,19 @@ export default function Chatbot() {
           <div className="flex flex-col w-full px-6 py-4 squircle bg-background">
             <h1 className="text-xl font-semibold text-foreground">AI Assistant</h1>
             <p className="text-[12px] font-mono text-foreground/50">
-              {activeSessionId ? `Session · ${activeSessionId.slice(0, 8)}…` : "ask AI about your health"}
+              {activeSessionId ? `Session · ${activeSessionId.slice(0, 8)}…` : "Ask AI about your health"}
             </p>
           </div>
         </header>
 
-        {/* ── Messages ── */}
         <div className="relative w-[70%] mb-45 z-1 flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-background [&::-webkit-scrollbar-thumb]:rounded-full">
 
-          {/* Date divider */}
           <div className="flex items-center justify-center my-1">
             <span className="text-[11px] font-mono text-foreground/50 tracking-widest uppercase">
               Today — {date}
             </span>
           </div>
 
-          {/* Loading overlay */}
           {loadingHistory && (
             <div className="flex flex-col items-center gap-3 py-12 text-center" style={{ animation: "fadeUp 0.2s ease-out" }}>
               <div className="w-8 h-8 rounded-full bg-richcerulean/20 flex items-center justify-center">
@@ -280,7 +274,6 @@ export default function Chatbot() {
               className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
               style={{ animation: "fadeUp 0.25s ease-out" }}
             >
-              {/* Avatar */}
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold tracking-wider shrink-0 mt-0.5 ${
                   msg.role === "assistant"
@@ -291,7 +284,6 @@ export default function Chatbot() {
                 {msg.role === "assistant" ? "AI" : "ME"}
               </div>
 
-              {/* Bubble + time */}
               <div className={`flex flex-col gap-1 max-w-[72%] ${msg.role === "user" ? "items-end" : ""}`}>
                 <div
                   className={`px-4 py-3 squircle text-sm leading-relaxed ${
@@ -309,7 +301,6 @@ export default function Chatbot() {
             </div>
           ))}
 
-          {/* Typing dots */}
           {isTyping && streamedText === "" && (
             <div className="flex gap-3" style={{ animation: "fadeUp 0.25s ease-out" }}>
               <div className="w-8 h-8 rounded-full bg-richcerulean flex items-center justify-center text-[11px] font-bold text-white shrink-0">
@@ -327,7 +318,6 @@ export default function Chatbot() {
             </div>
           )}
 
-          {/* Streamed text */}
           {streamedText && (
             <div className="flex gap-3" style={{ animation: "fadeUp 0.25s ease-out" }}>
               <div className="w-8 h-8 rounded-full bg-richcerulean flex items-center justify-center text-[11px] font-bold text-white shrink-0">
@@ -348,7 +338,6 @@ export default function Chatbot() {
 
         <div className="fixed z-10 bottom-0 left-0 right-0 flex flex-col items-center pb-10">
 
-          {/* ── Suggestion chips ── */}
           {messages.length <= 1 && !isTyping && (
             <div className="flex flex-row overflow-x-auto items-center max-w-[70%] gap-2 px-6 pb-3 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-richcerulean/20 [&::-webkit-scrollbar-thumb]:rounded-full">
               {SUGGESTIONS.map((s) => (
@@ -357,7 +346,6 @@ export default function Chatbot() {
             </div>
           )}
 
-          {/* ── Input area ── */}
           <div className="w-[70%] z-10 mb-10 flex items-center -space-x-2.75">
             <div className="flex flex-col w-[95%] squircle bg-background">
               <div className="flex w-full items-center gap-2.5 p-4">
@@ -393,7 +381,6 @@ export default function Chatbot() {
         </div>
       </div>
 
-      {/* ── Backdrop (click to close) ── */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/10 backdrop-blur-[1px]"
@@ -402,14 +389,12 @@ export default function Chatbot() {
         />
       )}
 
-      {/* ── Sidebar overlay ── */}
       <aside
         className={`fixed top-6 bottom-6 right-6 z-30 flex flex-col bg-background squircle overflow-hidden transition-all duration-300 ease-in-out ${
           sidebarOpen ? "w-72 opacity-100 translate-x-0" : "w-72 opacity-0 translate-x-4 pointer-events-none"
         }`}
         style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)" }}
       >
-        {/* Sidebar header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-foreground/10 shrink-0">
           <div className="flex items-center gap-2">
             <History size={16} className="text-richcerulean" />
@@ -424,7 +409,6 @@ export default function Chatbot() {
           </button>
         </div>
 
-        {/* Sessions list */}
         <div className="flex-1 overflow-y-auto py-2 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-foreground/10 [&::-webkit-scrollbar-thumb]:rounded-full">
           {sessions.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 px-4 text-center">
@@ -449,7 +433,6 @@ export default function Chatbot() {
           )}
         </div>
       </aside>
-      {/* Sidebar toggle button — fixed, floats over layout */}
       <div
         className={`fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${
             sidebarOpen ? "md:right-85 -right-20" : "right-5"
