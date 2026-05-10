@@ -43,7 +43,6 @@ export default function LoginPage() {
         className="w-full max-w-md squircle bg-background p-8 sm:p-10 border border-foreground/10 shadow-xl relative overflow-hidden"
         style={{ animation: "fadeUp 0.35s ease-out" }}
       >
-        {/* Efek Gradasi Background */}
         <div className="absolute top-0 right-0 w-40 h-40 bg-richcerulean/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-foreground/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
 

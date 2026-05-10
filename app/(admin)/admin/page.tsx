@@ -152,7 +152,6 @@ export default function AdminArticles() {
 
             <main className="w-full max-w-6xl mx-auto p-6 sm:p-10 flex flex-col gap-8">
 
-                {/* Search & Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="md:col-span-3 relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/30" size={18} />
@@ -170,7 +169,6 @@ export default function AdminArticles() {
                     </div>
                 </div>
 
-                {/* Articles List */}
                 <div className="grid grid-cols-1 gap-4">
                     {loading ? (
                         <div className="py-20 flex flex-col items-center justify-center text-foreground/30 gap-4">
@@ -243,7 +241,6 @@ export default function AdminArticles() {
                 </div>
             </main>
 
-            {/* Editor Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-10">
                     <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />

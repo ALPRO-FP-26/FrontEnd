@@ -58,7 +58,6 @@ export default function RegisterPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-300 text-foreground p-4">
       <div className="w-full max-w-2xl squircle bg-background p-8 sm:p-10 border border-foreground/10 shadow-xl relative overflow-hidden">
-        {/* Decorative Blurs */}
         <div className="absolute top-0 right-0 w-40 h-40 bg-richcerulean/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         
         <Link href="/" className="absolute top-6 left-6 z-20 w-10 h-10 squircle bg-background border border-foreground/10 flex items-center justify-center text-foreground/60 hover:text-richcerulean transition-colors">

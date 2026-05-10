@@ -75,9 +75,7 @@ export default function ArticleDetailPage() {
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-300 text-foreground font-sans pb-20">
 
-      {/* Article Header & Cover */}
       <header className="w-[70%] mx-auto squircle mt-5  bg-background pb-12 relative overflow-hidden">
-        {/* Navigation Bar */}
         <div className="w-full max-w-4xl mx-auto px-6 py-6 flex justify-between items-center relative z-10">
           <Link href="/article" className="flex items-center gap-2 text-foreground/40 hover:text-richcerulean transition-colors font-bold text-xs uppercase tracking-widest group">
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back to Articles
@@ -129,7 +127,6 @@ export default function ArticleDetailPage() {
         )}
       </header>
 
-      {/* Article Content */}
       <main className="w-[70%] py-16 flex flex-col md:flex-row gap-12">
         <div className="flex-1 min-w-0">
           <div className="bg-background p-8 squircle prose prose-lg max-w-none prose-slate prose-headings:text-foreground prose-p:text-foreground/70 prose-strong:text-foreground prose-a:text-richcerulean text-md leading-[1.8] whitespace-pre-wrap">
