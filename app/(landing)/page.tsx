@@ -145,7 +145,7 @@ export default function Home() {
             <div className="h-px flex-1 bg-foreground/10" />
           </div>
 
-          <div className="relative w-full overflow-hidden squircle bg-background border border-foreground/10 shadow-sm p-8 sm:p-12 min-h-[350px] flex items-center justify-center">
+          <div className="relative w-full overflow-hidden squircle bg-background border border-foreground/10 shadow-sm p-8 sm:p-12 min-h-87.5 flex items-center justify-center">
             <div className="flex flex-col items-center text-center max-w-lg gap-4 relative z-20">
               <div
                 key={`icon-${currentSlide}`}

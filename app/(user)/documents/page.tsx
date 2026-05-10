@@ -1145,7 +1145,7 @@ export default function Documents() {
 
       {toast && (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none flex items-center gap-2 px-5 py-2.5 squircle font-mono text-[12px] font-medium ${toast.warn ? "bg-amber-500 text-white" : "bg-foreground text-background"
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-100 pointer-events-none flex items-center gap-2 px-5 py-2.5 squircle font-mono text-[12px] font-medium ${toast.warn ? "bg-amber-500 text-white" : "bg-foreground text-background"
             }`}
           style={{ animation: "fadeUp 0.3s ease-out" }}
         >
