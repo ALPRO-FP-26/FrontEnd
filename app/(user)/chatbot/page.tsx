@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCirclePlus, SendHorizontal, History, Trash2, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { MessageCirclePlus, SendHorizontal, History, Trash2, ChevronRight, Clock } from "lucide-react";
 import Chip from "@/components/chip";
 import Button from "@/components/button";
 import { sendChatMessage, getChatSessions, getChatHistory, clearChatHistory, type ChatSession } from "@/lib/api";
@@ -34,7 +34,6 @@ export default function Chatbot() {
   const [hasMounted, setHasMounted] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(undefined);
 
-  // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -55,7 +54,6 @@ export default function Chatbot() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Fetch sessions when sidebar opens
   const fetchSessions = useCallback(async () => {
     const token = localStorage.getItem("access_token");
     if (!token) return;
@@ -153,7 +151,6 @@ export default function Chatbot() {
           { id: String(nextMessageId.current++), role: "assistant", content: full, timestamp: new Date() },
         ]);
         setIsTyping(false);
-        // Refresh sessions list if sidebar is open
         if (sidebarOpen) fetchSessions();
       });
     } catch (error) {
@@ -238,17 +235,6 @@ export default function Chatbot() {
 
       {/* ── Main content ── */}
       <div className="flex-1 flex flex-col items-center min-w-0 relative z-10">
-
-        {/* Sidebar toggle tab */}
-        <button
-          onClick={() => setSidebarOpen((p) => !p)}
-          className="fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-6 h-12 bg-background border border-foreground/15 border-r-0 rounded-l-lg text-foreground/40 hover:text-richcerulean hover:border-richcerulean/40 transition-all duration-200"
-          title={sidebarOpen ? "Close history" : "Open history"}
-          style={{ right: sidebarOpen ? "288px" : "0px", transition: "right 0.3s ease" }}
-        >
-          {sidebarOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-
         {/* ── Header ── */}
         <header className="w-[70%] mt-5 z-10 flex -space-x-2.75 items-center">
           <Button
@@ -269,7 +255,7 @@ export default function Chatbot() {
         </header>
 
         {/* ── Messages ── */}
-        <div className="relative w-[70%] z-1 flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-background [&::-webkit-scrollbar-thumb]:rounded-full">
+        <div className="relative w-[70%] mb-45 z-1 flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-background [&::-webkit-scrollbar-thumb]:rounded-full">
 
           {/* Date divider */}
           <div className="flex items-center justify-center my-1">
@@ -360,57 +346,68 @@ export default function Chatbot() {
           <div ref={bottomRef} />
         </div>
 
-        {/* ── Suggestion chips ── */}
-        {messages.length <= 1 && !isTyping && (
-          <div className="relative z-10 flex flex-wrap items-center max-w-[70%] gap-2 px-6 pb-3">
-            {SUGGESTIONS.map((s) => (
-              <Chip key={s} label={s} onClick={() => sendMessage(s)} />
-            ))}
-          </div>
-        )}
+        <div className="fixed z-10 bottom-0 left-0 right-0 flex flex-col items-center pb-10">
 
-        {/* ── Input area ── */}
-        <div className="w-[70%] z-10 mb-10 flex items-center -space-x-2.75">
-          <div className="flex flex-col w-[95%] squircle bg-background">
-            <div className="flex w-full items-center gap-2.5 p-4">
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  resizeTextarea();
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask me anything…"
-                className="flex-1 mr-5 bg-transparent border-none outline-none text-foreground text-sm leading-relaxed resize-none min-h-6.5 max-h-40 placeholder:text-foreground/40 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-richcerulean/20 [&::-webkit-scrollbar-thumb]:rounded-full"
-              />
+          {/* ── Suggestion chips ── */}
+          {messages.length <= 1 && !isTyping && (
+            <div className="flex flex-row overflow-x-auto items-center max-w-[70%] gap-2 px-6 pb-3 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-richcerulean/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {SUGGESTIONS.map((s) => (
+                <Chip key={s} label={s} onClick={() => sendMessage(s)} />
+              ))}
             </div>
-            <p className="text-center text-[11px] font-mono text-foreground/35 tracking-wider my-2 px-5">
-              Enter to send · Shift+Enter for new line
-            </p>
-          </div>
-          <span className="w-7 h-7 rotate-135 bg-background scoop-70-30 -z-1" />
-          <Button
-            onClick={() => sendMessage()}
-            disabled={!input.trim() || isTyping}
-            title="Send (Enter)"
-            className="z-1"
-            bgClass={!input.trim() || isTyping ? "bg-gray-300 text-foreground/70" : "bg-richcerulean text-background"}
-            hoverClass={!input.trim() || isTyping ? "hover:bg-gray-300 hover:text-foreground/70" : "hover:bg-foreground hover:text-background"}
-          >
-            <SendHorizontal size={20} />
-          </Button>
-        </div>
+          )}
 
+          {/* ── Input area ── */}
+          <div className="w-[70%] z-10 mb-10 flex items-center -space-x-2.75">
+            <div className="flex flex-col w-[95%] squircle bg-background">
+              <div className="flex w-full items-center gap-2.5 p-4">
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    resizeTextarea();
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask me anything…"
+                  className="flex-1 mr-5 bg-transparent border-none outline-none text-foreground text-sm leading-relaxed resize-none min-h-6.5 max-h-40 placeholder:text-foreground/40 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-richcerulean/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+                />
+              </div>
+              <p className="text-center text-[11px] font-mono text-foreground/35 tracking-wider my-2 px-5">
+                Enter to send · Shift+Enter for new line
+              </p>
+            </div>
+            <span className="w-7 h-7 rotate-135 bg-background scoop-70-30 -z-1" />
+            <Button
+              onClick={() => sendMessage()}
+              disabled={!input.trim() || isTyping}
+              title="Send (Enter)"
+              className="z-1"
+              bgClass={!input.trim() || isTyping ? "bg-gray-300 text-foreground/70" : "bg-richcerulean text-background"}
+              hoverClass={!input.trim() || isTyping ? "hover:bg-gray-300 hover:text-foreground/70" : "hover:bg-foreground hover:text-background"}
+            >
+              <SendHorizontal size={20} />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* ── Sidebar ── */}
+      {/* ── Backdrop (click to close) ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/10 backdrop-blur-[1px]"
+          onClick={() => setSidebarOpen(false)}
+          style={{ animation: "fadeIn 0.2s ease-out" }}
+        />
+      )}
+
+      {/* ── Sidebar overlay ── */}
       <aside
-        className={`relative z-20 flex flex-col bg-background border-l border-foreground/10 transition-all duration-300 ease-in-out shrink-0 ${
-          sidebarOpen ? "w-72" : "w-0"
-        } overflow-hidden`}
-        style={{ boxShadow: sidebarOpen ? "-4px 0 20px rgba(0,0,0,0.06)" : "none" }}
+        className={`fixed top-6 bottom-6 right-6 z-30 flex flex-col bg-background squircle overflow-hidden transition-all duration-300 ease-in-out ${
+          sidebarOpen ? "w-72 opacity-100 translate-x-0" : "w-72 opacity-0 translate-x-4 pointer-events-none"
+        }`}
+        style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)" }}
       >
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-foreground/10 shrink-0">
@@ -452,7 +449,19 @@ export default function Chatbot() {
           )}
         </div>
       </aside>
-
+      {/* Sidebar toggle button — fixed, floats over layout */}
+      <div
+        className={`fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${
+            sidebarOpen ? "md:right-85 -right-20" : "right-5"
+          }`}
+      >
+        <Button
+          onClick={() => setSidebarOpen((p) => !p)}
+          title={sidebarOpen ? "Close history" : "Open history"}
+        >
+          {sidebarOpen ? <ChevronRight size={16} /> : <History size={16} />}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@ export default function Chip({ label, onClick }: SuggestionChipProps) {
   return (
     <button
       onClick={onClick}
-      className="px-3.5 py-1.5 squircle bg-richcerulean text-background text-[13px] hover:bg-foreground transition-all cursor-pointer"
+      className="px-3.5 py-1.5 min-w-fit squircle bg-richcerulean text-background text-[13px] hover:bg-foreground transition-all cursor-pointer"
     >
       {label}
     </button>

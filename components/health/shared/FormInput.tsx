@@ -26,7 +26,7 @@ export const FormInput: React.FC<FormInputProps> = ({
       <label className="text-[11px] font-mono font-semibold text-foreground/50 uppercase tracking-wider px-1">
         {label}
       </label>
-      <div className="flex items-center gap-2 px-4 py-3 bg-foreground/[0.03] border border-foreground/10 squircle focus-within:border-richcerulean focus-within:bg-background transition-all">
+      <div className="flex items-center gap-2 px-4 py-3 bg-foreground/3 border border-foreground/10 squircle focus-within:border-richcerulean focus-within:bg-background transition-all">
         <input
           type={type}
           value={value}

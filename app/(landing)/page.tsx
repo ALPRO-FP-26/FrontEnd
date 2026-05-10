@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Activity, FileText, Bot, ShieldCheck, ArrowRight, ChevronLeft, ChevronRight, HeartPulse, LineChart, AlertTriangle, Stethoscope } from "lucide-react";
+import { Activity, FileText, Bot, ArrowRight, ChevronLeft, ChevronRight, HeartPulse, LineChart, AlertTriangle, Stethoscope } from "lucide-react";
 import Button from "@/components/button";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 
@@ -35,15 +35,18 @@ const slides = [
 ];
 
 export default function Home() {
-  const ready = useAuthGuard(false); // redirect to /dashboard if already logged in
+  const ready = useAuthGuard(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
+  if (slides.length === 0) return;
+
+  const timer = setTimeout(() => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  }, 5000);
+
+  return () => clearTimeout(timer);
+}, [currentSlide, slides.length]);
 
   if (!ready) return null;
 
@@ -58,8 +61,8 @@ export default function Home() {
           <div className="w-10 h-10 squircle bg-richcerulean flex items-center justify-center shadow-md shadow-richcerulean/20">
             <HeartPulse className="text-background" size={20} />
           </div>
-          <span className="font-bold text-xl tracking-tight text-foreground">
-            Health<span className="text-richcerulean">Companion</span>
+          <span className="font-black text-2xl tracking-tight text-foreground">
+            Medi<span className="text-richcerulean">Sync</span>
           </span>
         </div>
         <div className="flex gap-4 items-center">
@@ -76,16 +79,16 @@ export default function Home() {
 
         <section className="flex flex-col items-center text-center gap-6" style={{ animation: "fadeUp 0.5s ease-out" }}>
           <h1 className="text-4xl sm:text-6xl font-extrabold text-foreground leading-[1.15] tracking-tight max-w-3xl">
-            Making Sense of Your <br className="hidden sm:block" />
-            <span className="text-richcerulean">Medical Lab Results</span>
+            Your Health,<br className="hidden sm:block" />
+            <span className="text-richcerulean">Perfectly In Sync.</span>
           </h1>
           <p className="text-lg text-foreground/60 leading-relaxed max-w-2xl">
-            A personal health workspace designed to help you organize, read, and truly understand your medical records—empowering you to take control of your health.
+            MediSync brings your lab results, fitness data, and medical records together into one personal health workspace. Transform complex numbers into clear health insights, empowering you to live a healthier future.
           </p>
           <div className="mt-4">
             <Button
               href="/register"
-              className="px-8 py-4 bg-richcerulean hover:bg-foreground text-background !border-none shadow-lg shadow-richcerulean/20 squircle transition-all"
+              className="px-8 py-4 bg-richcerulean hover:bg-foreground text-background border-none! shadow-lg shadow-richcerulean/20 squircle transition-all"
               title="Getting Started"
             >
               <div className="flex items-center justify-center gap-2 px-2">
@@ -103,19 +106,19 @@ export default function Home() {
                 <Activity size={14} /> Our Mission
               </div>
               <h2 className="text-3xl font-bold text-foreground leading-tight">
-                Why we built HealthCompanion
+                Why we built MediSync
               </h2>
               <div className="space-y-4 text-foreground/60 leading-relaxed text-sm">
                 <p>
-                  Every day, patients managing chronic conditions like hypertension or diabetes need to meticulously log their blood sugar or blood pressure—sometimes up to three times a day. To prevent these crucial records from getting lost and to visualize health trends over time, we created HealthCompanion.
+                  Every day, patients managing chronic conditions like hypertension or diabetes need to meticulously log their blood sugar or blood pressure—sometimes up to three times a day. To prevent these crucial records from getting lost and to visualize health trends over time, we created MediSync.
                 </p>
                 <p>
-                  The healthcare system generates enormous amounts of personal health data, but almost none of it is accessible in plain language. People rely entirely on their doctor to interpret results, often going months without understanding their own health status. HealthCompanion bridges this gap by acting as your personal <strong>&quot;health translator&quot;</strong>—turning lab PDFs and daily vitals into a structured, searchable, and conversational health history.
+                  The healthcare system generates enormous amounts of personal health data, but almost none of it is accessible in plain language. People rely entirely on their doctor to interpret results, often going months without understanding their own health status. MediSync bridges this gap by acting as your personal <strong>&quot;health translator&quot;</strong>—turning lab PDFs and daily vitals into a structured, searchable, and conversational health history.
                 </p>
               </div>
             </div>
             <div className="w-full md:w-1/3 flex justify-center">
-              <div className="relative w-full max-w-[240px] aspect-[3/4] bg-gray-300 border border-foreground/10 squircle shadow-inner p-6 flex flex-col gap-4 transform rotate-3 hover:rotate-0 transition-transform duration-500">
+              <div className="relative w-full max-w-60 aspect-3/4 bg-gray-300 border border-foreground/10 squircle shadow-inner p-6 flex flex-col gap-4 transform rotate-3 hover:rotate-0 transition-transform duration-500">
                 <div className="w-1/2 h-3 bg-foreground/15 squircle" />
                 <div className="w-3/4 h-3 bg-foreground/15 squircle" />
                 <div className="w-full h-px bg-foreground/10 my-2" />

@@ -64,7 +64,7 @@ export const BloodSugarForm: React.FC<BloodSugarFormProps> = ({ onSave, onCancel
           <label className="text-[11px] font-mono font-semibold text-foreground/50 uppercase tracking-wider px-1">
             Glucose Value
           </label>
-          <div className="flex items-center gap-2 px-4 py-3 bg-foreground/[0.03] border border-foreground/10 squircle focus-within:border-richcerulean focus-within:bg-background transition-all">
+          <div className="flex items-center gap-2 px-4 py-3 bg-foreground/3 border border-foreground/10 squircle focus-within:border-richcerulean focus-within:bg-background transition-all">
             <input
               type="number"
               value={values.glucoseValue}

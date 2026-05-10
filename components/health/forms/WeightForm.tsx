@@ -21,6 +21,43 @@ export const WeightForm: React.FC<WeightFormProps> = ({ onSave, onCancel }) => {
   const [bmi, setBmi] = useState<{ value: number; label: string; color: string } | null>(null);
 
   useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const loadLastData = async () => {
+      try {
+        const { getHealthProfile, getWeightLogs } = await import('../../../lib/api');
+        const [profile, weightLogs] = await Promise.all([
+          getHealthProfile(token),
+          getWeightLogs(token)
+        ]);
+
+        let latestHeight = profile.height_cm ? String(profile.height_cm) : '';
+        let latestWeight = profile.weight_kg ? String(profile.weight_kg) : '';
+
+        if (weightLogs && weightLogs.length > 0) {
+          const sorted = [...weightLogs].sort((a, b) => 
+            new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
+          );
+          latestWeight = String(sorted[0].weight_kg);
+          if (sorted[0].height_cm) {
+            latestHeight = String(sorted[0].height_cm);
+          }
+        }
+
+        setValues(v => ({ 
+          ...v, 
+          heightCm: v.heightCm || latestHeight, 
+          weightKg: v.weightKg || latestWeight 
+        }));
+      } catch (err) {
+        console.error("Failed to load last health data", err);
+      }
+    };
+    loadLastData();
+  }, []);
+
+  useEffect(() => {
     const w = Number(values.weightKg);
     const h = Number(values.heightCm);
     if (w > 0 && h > 0) {
@@ -74,7 +111,7 @@ export const WeightForm: React.FC<WeightFormProps> = ({ onSave, onCancel }) => {
           <label className="text-[11px] font-mono font-semibold text-foreground/50 uppercase tracking-wider px-1">
             BMI Insight
           </label>
-          <div className="flex items-center justify-between h-[46px] px-4 bg-foreground/[0.03] border border-foreground/10 squircle">
+          <div className="flex items-center justify-between h-11.5 px-4 bg-foreground/3 border border-foreground/10 squircle">
              {bmi ? (
                <>
                  <span className="text-sm font-bold text-foreground">{bmi.value}</span>

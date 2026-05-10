@@ -66,7 +66,7 @@ export const BloodPressureForm: React.FC<BloodPressureFormProps> = ({ onSave, on
           <label className="text-[11px] font-mono font-semibold text-foreground/50 uppercase tracking-wider px-1">
             Status
           </label>
-          <div className="flex items-center h-[46px] px-4 bg-foreground/[0.03] border border-foreground/10 squircle">
+          <div className="flex items-center h-11.5 px-4 bg-foreground/3 border border-foreground/10 squircle">
              {classification ? (
                <div className="flex items-center gap-2">
                  <div className={`w-2 h-2 rounded-full ${classification.color} animate-pulse`} />

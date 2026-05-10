@@ -980,8 +980,11 @@ export default function Documents() {
                   </>
                 ) : (
                   <ManualTracker onSave={() => {
+                    fetchVitals();
+                    fetchRecords();
                     setToast({ msg: "Health log saved successfully!", warn: false });
                     setTimeout(() => setToast(null), 3000);
+                    setActiveTab("records");
                   }} />
                 )}
               </div>

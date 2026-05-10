@@ -63,6 +63,24 @@ export type HealthRecordResponse = {
   created_at: string;
 };
 
+export type CurrentUser = {
+  id: string;
+  name: string;
+  email: string;
+  telp_number?: string;
+  role: string;
+  image_url?: string;
+};
+
+export function getCurrentUser(accessToken: string) {
+  return request<CurrentUser>("/user/me", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
 export function getAccessToken() {
   return typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 }
@@ -126,7 +144,7 @@ async function request<T>(path: string, options: RequestInit, retry = true): Pro
   if (!response.ok) {
     throw new Error(payload?.error || payload?.message || "Request failed");
   }
-  if (payload && payload.data !== undefined){
+  if (payload && payload.data !== undefined) {
     return payload.data as T;
   }
   return payload as T;
@@ -144,7 +162,7 @@ export function register(name: string, email: string, password: string, profile?
   formData.append("name", name);
   formData.append("email", email);
   formData.append("password", password);
-  
+
   if (profile) {
     if (profile.date_of_birth) formData.append("date_of_birth", profile.date_of_birth);
     if (profile.biological_sex) formData.append("biological_sex", profile.biological_sex);
@@ -341,3 +359,65 @@ export function getWeightLogs(token: string) {
   });
 }
 
+export type Article = {
+  id: string;
+  title: string;
+  content: string;
+  cover_image_url: string;
+  author_id: string;
+  status: string;
+  published_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// Article API
+export function getArticles() {
+  return request<Article[]>("/articles", {
+    method: "GET",
+  });
+}
+
+export function getArticle(id: string) {
+  return request<Article>(`/articles/${id}`, {
+    method: "GET",
+  });
+}
+
+export function createArticle(accessToken: string, article: Partial<Article>) {
+  return request<Article>("/articles", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(article),
+  });
+}
+
+export function updateArticle(accessToken: string, id: string, article: Partial<Article>) {
+  return request<Article>(`/articles/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(article),
+  });
+}
+
+export function deleteArticle(accessToken: string, id: string) {
+  return request<any>(`/articles/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export function publishArticle(accessToken: string, id: string) {
+  return request<any>(`/articles/${id}/publish`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
